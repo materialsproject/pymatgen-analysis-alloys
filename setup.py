@@ -22,7 +22,7 @@ setup(
     author="materials virtual lab",
     author_email="ongsp@eng.ucsd.edu",
     maintainer="materials virtual lab",
-    url="https://github.com/materialsvirtuallab/pymatgen-diffusion/",
+    url="https://github.com/materialsproject/pymatgen-addon-template",
     license="BSD",
     description="A template for creating add-ons for pymatgen.",
     long_description=desc,

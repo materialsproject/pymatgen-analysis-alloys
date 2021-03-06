@@ -9,7 +9,8 @@ this means is that developers can now write packages that add functionality to p
 * a high-level API access to a new external resource (pymatgen.ext); or
 * support for input/output from another code (pymatgen.io).
 
-For a real-world example using this template, check out pymatgen-diffusion.
+For a real-world example using this template, check out `Materials Virtual Lab's pymatgen-diffusion
+<https://github.com/materialsvirtuallab/pymatgen-diffusion>`_.
 
 Usage
 =====
@@ -30,7 +31,8 @@ Usage
               myaddon
               - __init__.py
               - other module.py files
-    b. In setup.py, please name your package with the convention `pymatgen-<namespace>-<addon_name>`.
+    b. In setup.py, please name your package with the convention `pymatgen-<namespace>-<addon_name>`. Also make any
+       modifications to the rest of the file, especially the `find_namespace_packages` call.
     c. Your minimum pymatgen dependency must be v2022.0.3
 
 5. It is highly recommended you use the structure of this template and use the included Github Actions workflows

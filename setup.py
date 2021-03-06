@@ -26,7 +26,7 @@ setup(
     license="BSD",
     description="A template for creating add-ons for pymatgen.",
     long_description=desc,
-    keywords=["VASP", "diffusion", "molecular dynamics", "MD"],
+    keywords=["pymatgen"],
     classifiers=[
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.7",

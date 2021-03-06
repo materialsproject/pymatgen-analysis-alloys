@@ -2,15 +2,15 @@ Pymatgen-analysis-myaddon
 =========================
 
 This is a template for writing an add-on for pymatgen. From v2022.0.3, pymatgen, pymatgen.analysis, pymatgen.ext and
-and pymatgen.io are now `namespace packages <https://packaging.python.org/guides/packaging-namespace-packages/>`_. What
+and pymatgen.io are now `namespace packages <http://packaging.python.org/guides/packaging-namespace-packages/>`_. What
 this means is that developers can now write packages that add functionality to pymatgen, such as:
 
-* a new type of analysis (pymatgen.analysis);
-* a high-level API access to a new external resource (pymatgen.ext); or
-* support for input/output from another code (pymatgen.io).
+* A new type of analysis (pymatgen.analysis);
+* A high-level API access to a new external resource (pymatgen.ext); or
+* Support for input/output from another code, e.g., a new quantum chemistry software (pymatgen.io).
 
 For a real-world example using this template, check out `Materials Virtual Lab's pymatgen-diffusion
-<https://github.com/materialsvirtuallab/pymatgen-diffusion>`_.
+<http://github.com/materialsvirtuallab/pymatgen-diffusion>`_.
 
 Usage
 =====
@@ -33,12 +33,16 @@ Usage
               - other module.py files
     b. In setup.py, please name your package with the convention `pymatgen-<namespace>-<addon_name>`. Also make any
        modifications to the rest of the file, especially the `find_namespace_packages` call.
-    c. Your minimum pymatgen dependency must be v2022.0.3
+    c. Your minimum pymatgen dependency must be 2022.0.3. This is set by the line
+       `install_requires=["pymatgen>=2022.0.3"]` in the setup.py and the requirements.txt file.
 
-5. It is highly recommended you use the structure of this template and use the included Github Actions workflows
-   (see `.github </.github>`_ folder). These should work out of the box. In particular, it is highly recommended that
-   you write unittests for all functionality.
-6. Release your package on PyPi!
+5. It is highly recommended you use the structure of this template and the included Github Actions workflows
+   (see `.github </.github/workflows>`_ folder). These should work out of the box and performs linting and testing of
+   your code with every push. Note that the testing is only as useful as the tests you write. It is highly recommended
+   that you write unittests for all functionality.
+6. Release your package on PyPi, see `Python Packaging Guide
+   <http://packaging.python.org/tutorials/packaging-projects/>`_.
+7. (Optional) You may inform
 
 Afterwards, others will be able to install your package using::
 

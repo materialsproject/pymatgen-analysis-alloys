@@ -42,7 +42,8 @@ Usage
    that you write unittests for all functionality.
 6. Release your package on PyPi, see `Python Packaging Guide
    <http://packaging.python.org/tutorials/packaging-projects/>`_.
-7. (Optional) You may inform
+7. (Optional) You may submit a pull request to add your package to the `pymatgen add-ons listing page
+   <https://github.com/materialsproject/pymatgen/blob/master/docs_rst/addons.rst>`_.
 
 Afterwards, others will be able to install your package using::
 

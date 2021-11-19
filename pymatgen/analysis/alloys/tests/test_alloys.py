@@ -1,6 +1,6 @@
 import unittest
 
-from pymatgen.analysis.myaddon.mymodule import myfunc
+from pymatgen.analysis.alloys.mymodule import myfunc
 
 
 class FuncTest(unittest.TestCase):

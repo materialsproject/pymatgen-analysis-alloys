@@ -13,18 +13,17 @@ with open(os.path.join(SETUP_PTH, "README.rst")) as f:
 
 
 setup(
-    name="pymatgen-analysis-myaddon",
+    name="pymatgen-analysis-alloys",
     packages=find_namespace_packages(include=["pymatgen.analysis.*"]),
     version="0.0.1",
     install_requires=["pymatgen>=2022.0.3"],
     extras_require={},
     package_data={},
-    author="materials virtual lab",
-    author_email="ongsp@eng.ucsd.edu",
-    maintainer="materials virtual lab",
-    url="https://github.com/materialsproject/pymatgen-addon-template",
-    license="BSD",
-    description="A template for creating add-ons for pymatgen.",
+    author="Rachel Woods-Robinson, Matthew Horton",
+    author_email="rwoodsrobinson@lbl.gov",
+    maintainer="Rachel Woods-Robinson, Matthew Horton",
+    url="https://github.com/materialsproject/pymatgen-alloys",
+    description="A pymatgen add-on library with classes useful for describing alloy/disordered systems.",
     long_description=desc,
     keywords=["pymatgen"],
     classifiers=[

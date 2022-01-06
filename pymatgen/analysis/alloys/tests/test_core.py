@@ -1,12 +1,15 @@
 from pathlib import Path
+from typing import List
+
 from pymatgen.core import Structure
 
 from pymatgen.analysis.alloys.core import AlloyPair
 from monty.serialization import loadfn
 
 
-mp_661: Structure = loadfn(Path(__file__).parent / "mp-661.json")
-mp_804: Structure = loadfn(Path(__file__).parent / "mp-804.json")
+mp_661: Structure = loadfn(Path(__file__).parent / "AlN_mp-661.json")
+mp_804: Structure = loadfn(Path(__file__).parent / "GaN_mp-804.json")
+al_ga_n: List[Structure] = loadfn(Path(__file__).parent / "Al-Ga-N.json")
 
 
 def test_successful_alloy_pair_construction():
@@ -93,3 +96,24 @@ def test_successful_alloy_pair_construction_with_mixed_oxidation_states():
 
     assert pair.observer_elements == ["N"]
     assert pair.observer_species == []
+
+def test_membership():
+
+    mp_661_without_oxi_state = mp_661.copy()
+    mp_661_without_oxi_state.remove_oxidation_states()
+
+    mp_804_without_oxi_state = mp_804.copy()
+    mp_804_without_oxi_state.remove_oxidation_states()
+
+    pair = AlloyPair.from_structures(
+        (mp_661_without_oxi_state, mp_804_without_oxi_state),
+        (mp_661, mp_804),
+        ("mp-661", "mp-804"),
+        properties=({}, {})
+    )
+
+    members = []
+    for structure in al_ga_n:
+        is_member = pair.is_member(structure)
+        members.append(is_member)
+    assert members == [True, True, True, False, False, False, True]

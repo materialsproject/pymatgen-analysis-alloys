@@ -60,7 +60,7 @@ def ev_to_rgb(ev: float) -> Tuple[float, float, float]:
     :return: A (red, green, blue) tuple in the range 0-255
     """
     nm = ((10 ** 9) * c * h) / (elementary_charge * ev)
-    return rgb(nm)
+    return tuple(rgb(nm))
 
 
 class InvalidAlloy(ValueError):
@@ -85,6 +85,19 @@ SupportedProperties = Literal[
     "theoretical",
     "is_metal",
 ]
+
+
+@dataclass
+class AlloyMember(MSONable):
+    """
+    Light-weight class for specifying information about a member of an
+    AlloyPair or AlloySystem.
+    """
+
+    id_: str
+    db: str
+    comp: Composition
+    is_ordered: bool
 
 
 @dataclass
@@ -177,6 +190,7 @@ class AlloyPair(MSONable):
     isoelectronic: Optional[bool]
     anonymous_formula: str = field(repr=False)
     nelements: int = field(repr=False)
+    members: List[AlloyMember] = field(default_factory=list, repr=False)
 
     def __post_init__(self):
         """
@@ -352,6 +366,7 @@ class AlloyPair(MSONable):
             isoelectronic=isoelectronic,
             anonymous_formula=structure_a.composition.anonymized_formula,
             nelements=len(structure_a.composition.element_composition.elements),
+            members=[],
         )
 
         return system
@@ -428,16 +443,31 @@ class AlloyPair(MSONable):
         Check if a Structure could be a member of the AlloyPair.
 
         This method is necessarily a heuristic and can give
-        false positives or negatives depending on method used.
+        false positives or negatives.
+
+        If space groups match, it is assumed to be a member. If space groups do not match,
+        a StructureMatcher comparison is performed.
 
         :param structure: Structure to check
         :return: True or False
         """
 
-        # TODO: allow competing_pairs kwarg?
+        # TODO: allow competing_pairs kwarg which may change the behavior of this method depending on if
+        # it is known that other alloy pairs exist with this composition
 
         if self.chemsys != structure.composition.chemical_system:
             return False
+
+        try:
+            # can sometimes fail due to spglib returning None, unfortunately
+            spacegroup_intl_number = structure.get_space_group_info()[1]
+            if (self.spacegroup_intl_number_a == spacegroup_intl_number) or (self.spacegroup_intl_number_b) == (
+                    spacegroup_intl_number
+            ):
+                # heuristic! may give false positives
+                return True
+        except TypeError:
+            pass
 
         # create two test structures from input ABX: one of composition AX and one BX
         structure_a, structure_b = structure.copy(), structure.copy()
@@ -613,7 +643,6 @@ class AlloySystem(MSONable):
         alloy_pairs (List[AlloyPair]): A list of the AlloyPairs
             belonging to this system
         alloy_id (str): A unique identifier for this alloy system
-        members (List[]): List of AlloyMember(id=, db=, comp=, ordered=)
     """
 
     ids: Set[str]
@@ -696,33 +725,20 @@ class AlloySystem(MSONable):
 
         return list(hull.exterior.coords), list(hull.centroid.coords)[0], hull.area
 
-    def get_hull_trace_and_area(self, x_prop="volume_cube_root", y_prop="band_gap"):
+    def get_hull_trace_and_area(
+        self, x_prop="volume_cube_root", y_prop="band_gap", colour=(0, 0, 0), opacity=0.2, colour_by_centroid=False
+    ):
 
         hull, centroid, area = self.get_convex_hull_and_centroid(x_prop, y_prop)
 
         if not hull:
             return None, None
 
-        if y_prop == "band_gap":
+        if y_prop == "band_gap" and colour_by_centroid:
             try:
                 colour = ev_to_rgb(centroid[1])
-            except:
-                colour = (0, 0, 0)
-            if colour == (0, 0, 0):
-                return None, None  # let's not plot non-visible ones for now
-            opacity = 0.2
-            # gaps = [self.get_property(mpid, y_prop) for mpid in self.ids]
-            # opacity = 1 / (max(gaps) - min(gaps))
-            # if opacity > 1:
-            #     opacity = 1
-            # # fade out for black
-            # if colour == (0, 0, 0):
-            #     opacity *= 0.05
-            # else:
-            #     opacity *= 0.4
-        else:
-            colour = (255, 0, 0)
-            opacity = 0.1
+            except ValueError:  # wavelength out of range
+                pass
 
         trace = go.Scatter(
             x=[p[0] for p in hull],
@@ -743,6 +759,7 @@ class AlloySystem(MSONable):
         symbol="theoretical",
         column_mapping=None,
         plotly_pxline_kwargs=None,
+        plotly_pxscatter_kwargs=None,
     ):
 
         data = []
@@ -774,20 +791,35 @@ class AlloySystem(MSONable):
 
         df = pd.DataFrame(data)
 
-        kwargs = dict(
+        pxline_kwargs = dict(
             line_group="pair_id",
-            symbol=column_mapping[symbol],
-            symbol_map={True: "star", False: "circle"},
             text="formula",
             labels="formula",
             hover_data=["formula", "mpid"],
             title=f"Alloy system: {self.alloy_id}",
+            markers=False,
         )
         plotly_pxline_kwargs = plotly_pxline_kwargs or {}
-        kwargs.update(plotly_pxline_kwargs)
+        pxline_kwargs.update(plotly_pxline_kwargs)
 
-        fig = px.line(df, column_mapping[x_prop], column_mapping[y_prop], **kwargs)
-        fig.update_traces(marker={"size": 12})
+        fig = px.line(df, column_mapping[x_prop], column_mapping[y_prop], **pxline_kwargs)
+        fig.update_traces(textposition="top center")
+
+        if symbol:
+
+            pxscatter_kwargs = dict(symbol=column_mapping[symbol])
+            plotly_pxscatter_kwargs = plotly_pxscatter_kwargs or {}
+            pxscatter_kwargs.update(plotly_pxscatter_kwargs)
+
+            scatter_fig = px.scatter(df, column_mapping[x_prop], column_mapping[y_prop], **pxscatter_kwargs)
+            scatter_fig.update_traces(marker={"size": 12})
+            for trace in scatter_fig.data:
+                fig.add_trace(trace)
+
+        if y_prop == "band_gap":
+            for ev in np.arange(1.6, 3.1, 0.05):
+                fillcolor = "rgb({},{},{})".format(*ev_to_rgb((ev + ev + 0.1) / 2))
+                fig.add_hrect(y0=ev, y1=ev + 0.05, fillcolor=fillcolor, layer="below", line_width=0)
 
         return fig
 

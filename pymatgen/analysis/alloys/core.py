@@ -96,7 +96,8 @@ class AlloyMember(MSONable):
 
     id_: str
     db: str
-    comp: Composition
+    composition: Composition
+    x: float
     is_ordered: bool
 
 
@@ -488,6 +489,19 @@ class AlloyPair(MSONable):
             return True
 
         return False
+
+    def get_x(self, composition: Composition) -> float:
+        """
+        Calculate the position of a composition along
+        an input line.
+
+        :param composition: input composition
+        :return: x
+        """
+        c = composition.element_composition
+        if (self.alloying_element_a not in c) or (self.alloying_element_b not in c):
+            raise ValueError("Provided composition does not contain required alloying elements.")
+        return c[self.alloying_element_a] / (c[self.alloying_element_a] + c[self.alloying_element_b])
 
     @staticmethod
     def _get_alloying_elements_for_commensurate_structures(

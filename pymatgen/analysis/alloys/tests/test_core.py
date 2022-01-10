@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List
+from typing import Dict
 
 from pymatgen.core import Structure, Composition
 
@@ -8,17 +8,25 @@ from monty.serialization import loadfn
 
 
 mp_661: Structure = loadfn(Path(__file__).parent / "AlN_mp-661.json")
+mp_661_without_oxi_state = mp_661.copy()
+mp_661_without_oxi_state.remove_oxidation_states()
+
 mp_804: Structure = loadfn(Path(__file__).parent / "GaN_mp-804.json")
-al_ga_n: List[Structure] = loadfn(Path(__file__).parent / "Al-Ga-N.json")
+mp_804_without_oxi_state = mp_804.copy()
+mp_804_without_oxi_state.remove_oxidation_states()
+
+mp_1700: Structure = loadfn(Path(__file__).parent / "AlN_mp-1700.json")
+mp_1700_without_oxi_state = mp_1700.copy()
+mp_1700_without_oxi_state.remove_oxidation_states()
+
+mp_830: Structure = loadfn(Path(__file__).parent / "GaN_mp-830.json")
+mp_830_without_oxi_state = mp_830.copy()
+mp_830_without_oxi_state.remove_oxidation_states()
+
+al_ga_n: Dict[str, Structure] = loadfn(Path(__file__).parent / "Al-Ga-N.json")
 
 
 def test_successful_alloy_pair_construction():
-
-    mp_661_without_oxi_state = mp_661.copy()
-    mp_661_without_oxi_state.remove_oxidation_states()
-
-    mp_804_without_oxi_state = mp_804.copy()
-    mp_804_without_oxi_state.remove_oxidation_states()
 
     pair = AlloyPair.from_structures(
         (mp_661_without_oxi_state, mp_804_without_oxi_state),
@@ -46,12 +54,6 @@ def test_successful_alloy_pair_construction():
 
 def test_successful_alloy_pair_construction_without_oxidation_states():
 
-    mp_661_without_oxi_state = mp_661.copy()
-    mp_661_without_oxi_state.remove_oxidation_states()
-
-    mp_804_without_oxi_state = mp_804.copy()
-    mp_804_without_oxi_state.remove_oxidation_states()
-
     pair = AlloyPair.from_structures(
         (mp_661_without_oxi_state, mp_804_without_oxi_state),
         (mp_661_without_oxi_state, mp_804_without_oxi_state),
@@ -72,12 +74,6 @@ def test_successful_alloy_pair_construction_without_oxidation_states():
 
 
 def test_successful_alloy_pair_construction_with_mixed_oxidation_states():
-
-    mp_661_without_oxi_state = mp_661.copy()
-    mp_661_without_oxi_state.remove_oxidation_states()
-
-    mp_804_without_oxi_state = mp_804.copy()
-    mp_804_without_oxi_state.remove_oxidation_states()
 
     pair = AlloyPair.from_structures(
         (mp_661_without_oxi_state, mp_804_without_oxi_state),
@@ -100,33 +96,54 @@ def test_successful_alloy_pair_construction_with_mixed_oxidation_states():
 
 def test_membership():
 
-    mp_661_without_oxi_state = mp_661.copy()
-    mp_661_without_oxi_state.remove_oxidation_states()
-
-    mp_804_without_oxi_state = mp_804.copy()
-    mp_804_without_oxi_state.remove_oxidation_states()
-
-    pair = AlloyPair.from_structures(
+    wz_pair = AlloyPair.from_structures(
         (mp_661_without_oxi_state, mp_804_without_oxi_state),
         (mp_661, mp_804),
         ("mp-661", "mp-804"),
         properties=({}, {})
     )
 
-    members = []
-    for structure in al_ga_n:
-        is_member = pair.is_member(structure)
-        members.append(is_member)
-    assert members == [True, True, True, False, False, False, True]
+    zb_pair = AlloyPair.from_structures(
+        (mp_1700_without_oxi_state, mp_830_without_oxi_state),
+        (mp_1700, mp_830),
+        ("mp-1700", "mp-830"),
+        properties=({}, {})
+    )
+
+    wz_human_checked_members = {
+        "mp-1228943": True,  # wurtzite
+        "mp-1019508": False,  # zincblende
+        "mp-1228436": True,  # wurtzite
+        "mp-1228894": True,  # wurtzite
+        "mp-1008556": False,  # zincblende
+        "mp-1019378": False,  # zincblende
+        "mp-1228953": True,  # wurtzite
+    }
+
+    wz_computed_membership = {}
+    for mpid, structure in al_ga_n.items():
+        wz_computed_membership[mpid] = wz_pair.is_member(structure)
+
+    assert wz_computed_membership == wz_human_checked_members
+
+    zb_human_checked_members = {
+        "mp-1228943": False,  # wurtzite
+        "mp-1019508": True,  # zincblende
+        "mp-1228436": False,  # wurtzite
+        "mp-1228894": False,  # wurtzite
+        "mp-1008556": True,  # zincblende
+        "mp-1019378": True,  # zincblende
+        "mp-1228953": False,  # wurtzite
+    }
+
+    zb_computed_membership = {}
+    for mpid, structure in al_ga_n.items():
+        zb_computed_membership[mpid] = zb_pair.is_member(structure)
+
+    assert zb_computed_membership == zb_human_checked_members
 
 
 def test_get_x():
-
-    mp_661_without_oxi_state = mp_661.copy()
-    mp_661_without_oxi_state.remove_oxidation_states()
-
-    mp_804_without_oxi_state = mp_804.copy()
-    mp_804_without_oxi_state.remove_oxidation_states()
 
     pair = AlloyPair.from_structures(
         (mp_661_without_oxi_state, mp_804_without_oxi_state),

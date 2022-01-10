@@ -496,12 +496,25 @@ class AlloyPair(MSONable):
         an input line.
 
         :param composition: input composition
-        :return: x
+        :return: alloy content, x
         """
         c = composition.element_composition
         if (self.alloying_element_a not in c) or (self.alloying_element_b not in c):
             raise ValueError("Provided composition does not contain required alloying elements.")
         return c[self.alloying_element_a] / (c[self.alloying_element_a] + c[self.alloying_element_b])
+
+    def get_property_with_vegards_law(self, x: float, prop: str="band_gap") -> Optional[float]:
+        """
+        Apply Vegard's law to obtain a linearly interpolated property value.
+        :param x: alloy content, x
+        :param prop: property of interest (must be defined for both _a and _b)
+        :return: interpolated property, if not defined will return None
+        """
+        prop_a = getattr(self, f"{prop}_a", None) or self.properties_a.get(prop)
+        prop_b = getattr(self, f"{prop}_b", None) or self.properties_b.get(prop)
+        if (prop_a is None) or (prop_b is None):
+            return None
+        return (1-x)*prop_a + x*prop_b
 
     @staticmethod
     def _get_alloying_elements_for_commensurate_structures(
@@ -583,6 +596,8 @@ class AlloyPair(MSONable):
 
         search = dict()
 
+        # TODO: this is silly, note to self to make this less "clever"
+
         # for search, we want to search on min and max for float values
         # and create lists for string values
         numerical_attrs = set()
@@ -637,6 +652,8 @@ class AlloyPair(MSONable):
             if fields:
                 search[prop] = fields
 
+        search["member_ids"] = [m.id_ for m in self.members]
+
         return search
 
 
@@ -660,18 +677,22 @@ class AlloySystem(MSONable):
     """
 
     ids: Set[str]
-    pair_ids: Set[str] = field(init=False)
     alloy_pairs: List[AlloyPair] = field(repr=False)
-    alloy_id: str = field(init=False)
-    n_pairs: int = field(init=False)
-    chemsys: str = field(init=False)
-    chemsys_size: int = field(init=False, repr=False)
-    # sets of alloying_elements etc?
+    alloy_id: str = ""
+    n_pairs: int = 0
+    chemsys: str = ""
+    chemsys_size: int = 0
+    pair_ids: Set[str] = field(default_factory=set)
+    has_members: bool = False
+    # flat list of members of AlloyPairs that make up the system, TODO: change to set, make AlloyMember frozen
+    members: List[AlloyMember] = field(default_factory=list, repr=False)
+    # additional members of the system that are not a member of any one individal AlloyPair
+    additional_members: List[AlloyMember] = field(default_factory=list, repr=False)
+    # TODO: sets of alloying_elements etc?
+    # TODO: property ranges for searching?
     # property_ranges: Dict[SupportedProperties, Tuple[float, float]] = field(init=False)
 
     def __post_init__(self):
-        # TODO: construct property_ranges here
-
         self.alloy_id = hashlib.sha256("_".join(sorted(self.ids)).encode("utf-8")).hexdigest()[:6]
 
         self.n_pairs = len(self.alloy_pairs)
@@ -684,6 +705,9 @@ class AlloySystem(MSONable):
                 chemsys.add(el)
         self.chemsys_size = len(chemsys)
         self.chemsys = "-".join(sorted(chemsys))
+
+        self.members = list(chain.from_iterable(pair.members for pair in self.alloy_pairs))
+        self.has_members = bool(self.members)
 
     @staticmethod
     def systems_from_pairs(alloy_pairs: List[AlloyPair]):
@@ -774,9 +798,12 @@ class AlloySystem(MSONable):
         column_mapping=None,
         plotly_pxline_kwargs=None,
         plotly_pxscatter_kwargs=None,
+        plot_members=True,
+        member_plotly_pxscatter_kwargs=None
     ):
 
         data = []
+        member_data = []
 
         # used to set human-readable column names
         column_mapping = column_mapping or {x_prop: x_prop, y_prop: y_prop, symbol: symbol}
@@ -790,6 +817,7 @@ class AlloySystem(MSONable):
                     "mpid": pair.id_a,
                     "formula": pair.formula_a,
                     "pair_id": pair.pair_id,
+                    "has_members": len(pair.members) > 0
                 }
             )
             data.append(
@@ -800,8 +828,20 @@ class AlloySystem(MSONable):
                     "mpid": pair.id_b,
                     "formula": pair.formula_b,
                     "pair_id": pair.pair_id,
+                    "has_members": len(pair.members) > 0
                 }
             )
+            if plot_members:
+                for member in pair.members:
+                    member_data.append({
+                        column_mapping[x_prop]: pair.get_property_with_vegards_law(x=member.x, prop=x_prop),
+                        column_mapping[y_prop]: pair.get_property_with_vegards_law(x=member.x, prop=y_prop),
+                        "pair_id": pair.pair_id,
+                        #"formula": unicodeify(Composition.from_dict(member.composition).reduced_formula),
+                        "id": member.id_,
+                        "db": member.db,
+                        "x": member.x
+                    })
 
         df = pd.DataFrame(data)
 
@@ -812,6 +852,8 @@ class AlloySystem(MSONable):
             hover_data=["formula", "mpid"],
             title=f"Alloy system: {self.alloy_id}",
             markers=False,
+            line_dash="has_members",
+            category_orders={"has_members": [True, False]}
         )
         plotly_pxline_kwargs = plotly_pxline_kwargs or {}
         pxline_kwargs.update(plotly_pxline_kwargs)
@@ -830,6 +872,18 @@ class AlloySystem(MSONable):
             for trace in scatter_fig.data:
                 fig.add_trace(trace)
 
+        if plot_members and member_data:
+
+            member_pxscatter_kwargs = dict(hover_data=["id", "x"])
+            member_plotly_pxscatter_kwargs = member_plotly_pxscatter_kwargs or {}
+            member_pxscatter_kwargs.update(member_plotly_pxscatter_kwargs)
+
+            member_df = pd.DataFrame(member_data)
+
+            member_fig = px.scatter(member_df, column_mapping[x_prop], column_mapping[y_prop], **member_pxscatter_kwargs)
+            for trace in member_fig.data:
+                fig.add_trace(trace)
+
         if y_prop == "band_gap":
             for ev in np.arange(1.6, 3.1, 0.05):
                 fillcolor = "rgb({},{},{})".format(*ev_to_rgb((ev + ev + 0.1) / 2))
@@ -839,6 +893,21 @@ class AlloySystem(MSONable):
 
     def __len__(self):
         return len(self.pair_ids)
+
+    def as_dict(self) -> dict:
+        d = super().as_dict()
+        # because JSON doesn't have a set type
+        # alternative would be to use list, but set more appropriate
+        d['ids'] = list(d['ids'])
+        d['pair_ids'] = list(d['ids'])
+        return d
+
+    def from_dict(cls, d):
+        # because JSON doesn't have a set type
+        # alternative would be to use list, but set more appropriate
+        d['ids'] = set(d['ids'])
+        d['pair_ids'] = set(d['ids'])
+        return super(cls).from_dict(d)
 
     def as_dict_mongo(self):
         # do not store AlloyPairs?

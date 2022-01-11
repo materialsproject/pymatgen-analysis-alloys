@@ -5,9 +5,10 @@ entries in an AlloySystem must be commensurate with each other.
 
 A `FormulaAlloyPair` class contains `AlloyPairs` which have formation energies
 known to estimate which AlloyPair is stable for a given composition.
-TODO: A `FormulaAlloySystem` is defined consisting of `FormulaAlloyPair` and specifies
-the full space accessible for a given composition.
 """
+
+# TODO: A `FormulaAlloySystem` is defined consisting of `FormulaAlloyPair` and specifies
+# the full space accessible for a given composition.
 
 from dataclasses import dataclass, field
 
@@ -109,52 +110,54 @@ class AlloyPair(MSONable):
     B are end-point materials.
 
     Attributes:
-        formula_a (str): Reduced chemical formula for end-point material A
-        formula_b (str): Reduced chemical formula for end-point material B
-        structure_a (Structure): Pymatgen Structure for end-point material A
-        structure_b (Structure): Pymatgen Structure for end-point material B
-        id_a (str): Unique identifier for end-point material A, e.g. Materials Project material_id
-        id_b (str): Unique identifier for end-point material B, e.g. Materials Project material_id
-        alloying_element_a (str): Element to be alloyed in end-point material A
-        alloying_element_b (str): Element to be alloyed in end-point material B
+        formula_a (str): Reduced chemical formula for end-point material A.
+        formula_b (str): Reduced chemical formula for end-point material B.
+        structure_a (Structure): Pymatgen Structure for end-point material A.
+        structure_b (Structure): Pymatgen Structure for end-point material B.
+        id_a (str): Unique identifier for end-point material A, e.g. Materials Project material_id.
+        id_b (str): Unique identifier for end-point material B, e.g. Materials Project material_id.
+        alloying_element_a (str): Element to be alloyed in end-point material A.
+        alloying_element_b (str): Element to be alloyed in end-point material B.
         alloying_species_a (Optional[str]): If oxidation state detected, species to
-            be alloyed in end-point material A
+            be alloyed in end-point material A.
         alloying_species_b (Optional[str]): If oxidation state detected, species to
-            be alloyed in end-point material B
-        anions_a (List[str]): Anions with oxidation state in end-point material A
-        anions_b (List[str]): Anions with oxidation state in end-point material B
-        cations_a (List[str]): Cations with oxidation state in end-point material A
-        cations_b (List[str]): Cations with oxidation state in end-point material B
-        observer_elements (List[str]): ...
-        observer_species (List[str]): ...
+            be alloyed in end-point material B.
+        anions_a (List[str]): Anions with oxidation state in end-point material A.
+        anions_b (List[str]): Anions with oxidation state in end-point material B.
+        cations_a (List[str]): Cations with oxidation state in end-point material A.
+        cations_b (List[str]): Cations with oxidation state in end-point material B.
+        observer_elements (List[str]): Elements in end-point materials A and B that
+            are not alloyed.
+        observer_species (List[str]): If oxidation state detected, species in
+            end-point materials A and B that are not alloyed.
         lattice_parameters_a (List[float]): Conventional lattice parameters,
-            formatted as [a, b, c, alpha, beta, gamma], for end-point material A
+            formatted as [a, b, c, alpha, beta, gamma], for end-point material A.
         lattice_parameters_b (List[float]): Conventional lattice parameters,
-            formatted as [a, b, c, alpha, beta, gamma], for end-point material B
+            formatted as [a, b, c, alpha, beta, gamma], for end-point material B.
         properties_a (dict): Materials properties of end-point material A
             that may or may not be populated. Suggested keys are "e_above_hull",
-            "formation_energy", "band_gap, "is_gap_direct", "m_n", "m_p"
+            "formation_energy", "band_gap, "is_gap_direct", "m_n", "m_p".
         properties_b (dict): Materials properties of end-point material A
             that may or may not be populated. Suggested keys are "e_above_hull",
-            "formation_energy", "band_gap, "is_gap_direct", "m_n", "m_p"
+            "formation_energy", "band_gap, "is_gap_direct", "m_n", "m_p".
         volume_cube_root_a (float): Cube root of the volume of the primitive
-            unit cell for end-point material A, in Angstroms
+            unit cell for end-point material A, in Angstroms.
         volume_cube_root_b (float): Cube root of the volume of the primitive
-            unit cell for end-point material B, in Angstroms
+            unit cell for end-point material B, in Angstroms.
         spacegroup_intl_number_a (int): International space group number of end-point
-            material A
+            material A.
         spacegroup_intl_number_b (int): International space group number of end-point
-            material B
-        pair_id (str): A unique identifier for this alloy pair
-        pair_formula (str): A human-readable identifier for this alloy pair
+            material B.
+        pair_id (str): A unique identifier for this alloy pair.
+        pair_formula (str): A human-readable identifier for this alloy pair.
         alloy_oxidation_state (Optional[int]): If set, will be the common oxidation state for
             alloying elements in both end-points.
         isoelectronic (Optional[bool]): If set, will give whether the alloying elements
             are expected to be isoelectronic using their oxidation state. This is a
             simplistic method calculated based on the alloying elements' groups.
         anonymous_formula (str): Anonymous formula for both end-points (must be the
-            same for this class which does not consider incommensurate alloys)
-        nelements (int): Number of elements in end-point structure
+            same for this class which does not consider incommensurate alloys).
+        nelements (int): Number of elements in end-point structure.
     """
 
     # some fields are not shown in the __repr__ for brevity
@@ -195,16 +198,33 @@ class AlloyPair(MSONable):
 
     def __post_init__(self):
         """
-        Does check that formula are sorted correctly for our alloy convention.
+        Perform check that formulas are sorted correctly for our alloy convention.
         """
 
         if self.formula_a > self.formula_b:
             raise ValueError("By convention, formula_a and formula_b must be sorted by alphabetical order.")
 
     @property
-    def alloy_formula(self):
+    def alloy_formula(self) -> str:
+        """
+        :return: Formatted alloy formula (e.g. AₓB₁₋ₓC).
+        """
         return unicodeify(self.formula_a).replace(
             self.alloying_element_a, f"({self.alloying_element_b}ₓ{self.alloying_element_a}₁₋ₓ)",
+        )
+
+    @staticmethod
+    def get_alloy_formula_from_formulas(formula_a: str, alloying_element_a: str, alloying_element_b: str) -> str:
+        """
+        Method to get alloy formula (e.g. AₓB₁₋ₓC) as a function of formulas of two alloying compounds.
+
+        :param formula_a: Reduced chemical formula for end-point material A.
+        :param alloying_element_a: Element to be alloyed in end-point material A.
+        :param alloying_element_b: Element to be alloyed in end-point material B.
+        :return: Formatted alloy formula (e.g. AₓB₁₋ₓC).
+        """
+        return unicodeify(formula_a).replace(
+            alloying_element_a, f"({alloying_element_b}ₓ{alloying_element_a}₁₋ₓ)",
         )
 
     def __str__(self):
@@ -216,10 +236,10 @@ class AlloyPair(MSONable):
         Method to get anions and cations from a structure as strings with oxidation
         state included.
 
-        :param structure: Structure, ideally already oxidation-state decorated
-        :param attempt_to_guess: if True, will attempt to guess oxidation states if not
-        already specified,
-        :return:
+        :param structure: Structure, ideally already oxidation-state decorated.
+        :param attempt_to_guess: If True, will attempt to guess oxidation states if not
+        already specified.
+        :return: Anions and cations with oxidation state in input structure.
         """
 
         if attempt_to_guess:
@@ -266,17 +286,25 @@ class AlloyPair(MSONable):
         angle_tol: float = ANGLE_TOL,
     ) -> "AlloyPair":
         """
-        ...
+        Function to construct AlloyPair class.
 
-        :param structures:
-        :param structures_with_oxidation_states:
-        :param ids:
-        :param properties:
-        :param ltol:
-        :param stol:
-        :param angle_tol:
-        :return:
+        :param structures: Pair of pymatgen Structure objects.
+        :param structures_with_oxidation_states: Pair of pymatgen Structure objects decorated
+            with oxidation state.
+        :param ids: Pair of unique identifiers, e.g. Materials Project material_id.
+        :param properties: Pair of materials properties that may or may not be populated.
+            Suggested keys are "e_above_hull", "formation_energy", "band_gap,
+            "is_gap_direct", "m_n", "m_p".
+        :param ltol: Fractional length tolerance, as defined in
+            :py:class:`pymatgen.analysis.structure_matcher.StructureMatcher`.
+        :param stol: Site tolerance, as the fraction of the average free length per
+            atom := ( V / Nsites ) ** (1/3) as defined in
+            :py:class:`pymatgen.analysis.structure_matcher.StructureMatcher`.
+        :param angle_tol: Angle tolerance in degrees, as defined in
+            :py:class:`pymatgen.analysis.structure_matcher.StructureMatcher`.
+        :return: AlloyPair class.
         """
+        # TODO: modify this method so that end user only supplies structures once
 
         if len(structures) != len(ids) != 2:
             raise InvalidAlloy("An alloy system must have two and only two end-points.")
@@ -386,6 +414,14 @@ class AlloyPair(MSONable):
         """
         Get information about what oxidation states are present in the alloy, such
         as if the alloy is isoelectronic or not.
+
+        :param anions_a: Anions with oxidation state in end-point material A.
+        :param cations_a: Cations with oxidation state in end-point material A.
+        :param anions_b: Anions with oxidation state in end-point material B.
+        :param cations_b: Cations with oxidation state in end-point material B.
+        :param alloying_element_a: Element to be alloyed in end-point material A.
+        :param alloying_element_b: Element to be alloyed in end-point material B.
+        :return: Information about what oxidation states are present in the alloy.
         """
 
         # determine the oxidation state of the alloying element if detected and
@@ -450,6 +486,13 @@ class AlloyPair(MSONable):
         a StructureMatcher comparison is performed.
 
         :param structure: Structure to check
+        :param ltol: Fractional length tolerance, as defined in
+            :py:class:`pymatgen.analysis.structure_matcher.StructureMatcher`.
+        :param stol: Site tolerance, as the fraction of the average free length per
+            atom := ( V / Nsites ) ** (1/3) as defined in
+            :py:class:`pymatgen.analysis.structure_matcher.StructureMatcher`.
+        :param angle_tol: Angle tolerance in degrees, as defined in
+            :py:class:`pymatgen.analysis.structure_matcher.StructureMatcher`.
         :return: True or False
         """
 
@@ -495,8 +538,8 @@ class AlloyPair(MSONable):
         Calculate the position of a composition along
         an input line.
 
-        :param composition: input composition
-        :return: alloy content, x
+        :param composition: Input composition of a material.
+        :return: Fractional alloy content, x.
         """
         c = composition.element_composition
         if (self.alloying_element_a not in c) or (self.alloying_element_b not in c):
@@ -506,9 +549,11 @@ class AlloyPair(MSONable):
     def get_property_with_vegards_law(self, x: float, prop: str="band_gap") -> Optional[float]:
         """
         Apply Vegard's law to obtain a linearly interpolated property value.
-        :param x: alloy content, x
-        :param prop: property of interest (must be defined for both _a and _b)
-        :return: interpolated property, if not defined will return None
+
+        :param x: Fractional alloy content, x.
+        :param prop: Property of interest (must be defined for both end-point material A and
+            end-point material B).
+        :return: Interpolated property of alloy. If not defined will return None.
         """
         prop_a = getattr(self, f"{prop}_a", None) or self.properties_a.get(prop)
         prop_b = getattr(self, f"{prop}_b", None) or self.properties_b.get(prop)
@@ -527,6 +572,17 @@ class AlloyPair(MSONable):
         """
         Run a series of checks to ensure alloys structures are commensurate to the first order, and
         that only one element differs between structures.
+
+        :param structure_a: Pymatgen Structure for end-point material A.
+        :param structure_b: Pymatgen Structure for end-point material B.
+        :param ltol: Fractional length tolerance, as defined in
+            :py:class:`pymatgen.analysis.structure_matcher.StructureMatcher`.
+        :param stol: Site tolerance, as the fraction of the average free length per
+            atom := ( V / Nsites ) ** (1/3) as defined in
+            :py:class:`pymatgen.analysis.structure_matcher.StructureMatcher`.
+        :param angle_tol: Angle tolerance in degrees, as defined in
+            :py:class:`pymatgen.analysis.structure_matcher.StructureMatcher`.
+        :return: Element to be alloyed in end-point material A and B, respectively.
         """
 
         # check equivalent anonymous formula
@@ -556,9 +612,13 @@ class AlloyPair(MSONable):
 
         return alloying_element_a, alloying_element_b
 
-    def as_records(self, fields=None):
+    def as_records(self, fields: Optional[List[str]]=None) -> List[Dict]:
         """
-        Convert to a record for a pandas DataFrame to remove _a, _b subscripts for easier plotting.
+        Convert to a record to remove _a, _b subscripts for easier plotting. Can use
+        to create a pandas DataFrame.
+
+        :param fields: Subset of attributes to return (default: None).
+        :return: List of dictionaries of record information with _a and _b subscripts.
         """
 
         record_a = {"is": "a", "x": 0}
@@ -589,9 +649,12 @@ class AlloyPair(MSONable):
 
     def search_dict(self) -> dict:
         """
-        Additional fields from which to build search indices.
+        Additional fields from which to build search indices for MongoDB.
+        For example, it's useful to have a list of both formulas A and B
+        present during a search.
 
-        :return: dict
+        :return: A dictionary of additional fields, e.g. including
+        {"formula": [self.formula_a, self.formula_b]} etc.
         """
 
         search = dict()
@@ -660,20 +723,30 @@ class AlloyPair(MSONable):
 @dataclass
 class AlloySystem(MSONable):
     """
-    An alloy system defined by a group of AlloyPairs.
+    An alloy system defined by a group of alloy pairs (defined by AlloyPair).
 
     Attributes:
-        ids (List[str]): A flat list of all ids in the
-            alloy system
+        ids (List[str]): A flat list of all identifiers in the
+            alloy system.
+        alloy_pairs (List[AlloyPair]): A list of the alloy pairs
+            belonging to this system.
+        alloy_id (str): A unique identifier for this alloy system.
+        n_pairs (str): Number of alloys pairs in this alloy system.
+        chemsys (str): The chemical system of this alloy system.
+        chemsys_size (str): Number of elements in chemical system.
         pair_ids (List[str]): A list of id pairs defining
             the given alloy pair (where ids are underscore
             delimited and given in lexicographical order of their
             reduced formula, this format matches the format
-            from pair_id given in AlloyPair so is easy to
-            query in a database)
-        alloy_pairs (List[AlloyPair]): A list of the AlloyPairs
-            belonging to this system
-        alloy_id (str): A unique identifier for this alloy system
+            from pair_id given in alloy pairs so is easy to
+            query in a database).
+        has_members (bool = False): Whether there are alloy members
+            (defined by AlloyMember) in this alloy system.
+        members (List[AlloyMember]): Flat list of alloy members
+            (defined by AlloyMember) that make up the system.
+        additional_members (List[AlloyMember]): Additional members of
+            the system that are not a member of any one individual
+            alloy pair.
     """
 
     ids: Set[str]
@@ -684,9 +757,7 @@ class AlloySystem(MSONable):
     chemsys_size: int = 0
     pair_ids: Set[str] = field(default_factory=set)
     has_members: bool = False
-    # flat list of members of AlloyPairs that make up the system, TODO: change to set, make AlloyMember frozen
     members: List[AlloyMember] = field(default_factory=list, repr=False)
-    # additional members of the system that are not a member of any one individal AlloyPair
     additional_members: List[AlloyMember] = field(default_factory=list, repr=False)
     # TODO: sets of alloying_elements etc?
     # TODO: property ranges for searching?
@@ -710,8 +781,14 @@ class AlloySystem(MSONable):
         self.has_members = bool(self.members)
 
     @staticmethod
-    def systems_from_pairs(alloy_pairs: List[AlloyPair]):
+    def systems_from_pairs(alloy_pairs: List[AlloyPair]) -> List["AlloySystem"]:
+        """
+        Function to construct AlloySystem class from a list of alloy pairs.
 
+        :param alloy_pairs: A list of the alloy pairs
+            belonging to this system.
+        :return: A list of AlloySystem classes.
+        """
         g = nx.Graph()
 
         for pair in alloy_pairs:
@@ -719,25 +796,33 @@ class AlloySystem(MSONable):
 
         subgraphs = nx.connected_components(g)
 
-        def get_pairs_from_mpid_bunch(mpid_bunch):
-            return [pair for pair in alloy_pairs if ((pair.id_a in mpid_bunch) or (pair.id_b in mpid_bunch))]
+        def get_pairs_from_id_bunch(id_bunch):
+            return [pair for pair in alloy_pairs if ((pair.id_a in id_bunch) or (pair.id_b in id_bunch))]
 
         systems = [
-            AlloySystem(ids=set(subgraph), alloy_pairs=get_pairs_from_mpid_bunch(subgraph)) for subgraph in subgraphs
+            AlloySystem(ids=set(subgraph), alloy_pairs=get_pairs_from_id_bunch(subgraph)) for subgraph in subgraphs
         ]
 
         return systems
 
-    def get_property(self, mpid, prop):
+    def get_property(self, id_: str, prop: SupportedProperties) -> Any:
+        """
+        Get specified property of an alloy end-point in an alloy system.
+
+        :param id_: Unique identifier, e.g. Materials Project material_id.
+        :param prop: Specified materials property e.g. "e_above_hull",
+            "formation_energy", "band_gap, "is_gap_direct", "m_n", "m_p".
+        :return: Specified property for specified end-point material.
+        """
         for pair in self.alloy_pairs:
-            if pair.id_a == mpid:
+            if pair.id_a == id_:
                 if hasattr(pair, f"{prop}_a"):
                     return getattr(pair, f"{prop}_a")
                 elif prop in pair.properties_a:
                     return pair.properties_a[prop]
                 else:
                     return getattr(pair, f"{prop}")
-            elif pair.id_b == mpid:
+            elif pair.id_b == id_:
                 if hasattr(pair, f"{prop}_b"):
                     return getattr(pair, f"{prop}_b")
                 elif prop in pair.properties_b:
@@ -745,16 +830,23 @@ class AlloySystem(MSONable):
                 else:
                     return getattr(pair, f"{prop}")
 
-    def filter_by(self, prop_constraint) -> "AlloySystem":
-        # for plotting?
-        raise NotImplementedError
+    # def filter_by(self, prop_constraint) -> "AlloySystem":
+    #     # for subsystems
+    #     raise NotImplementedError
 
-    def get_verts(self, x_prop="volume_cube_root", y_prop="band_gap"):
-        pass
+    def get_convex_hull_and_centroid(
+            self,
+            x_prop: SupportedProperties = "volume_cube_root",
+            y_prop: SupportedProperties = "band_gap"
+    ) -> Tuple[List, List, float]:
+        """
+        Get convex hull, centroid, and area from specified material properties.
 
-    def get_convex_hull_and_centroid(self, x_prop="volume_cube_root", y_prop="band_gap"):
-
-        points = [(self.get_property(mpid, x_prop), self.get_property(mpid, y_prop)) for mpid in self.ids]
+        :param x_prop: Specified materials property (default: "volume_cube_root").
+        :param y_prop: Another specified materials property (default: "band_gap").
+        :return: Convex hull, centroid, and area of convex hull.
+        """
+        points = [(self.get_property(id_, x_prop), self.get_property(id_, y_prop)) for id_ in self.ids]
 
         if len(points) < 3:
             return None, None, None
@@ -764,8 +856,24 @@ class AlloySystem(MSONable):
         return list(hull.exterior.coords), list(hull.centroid.coords)[0], hull.area
 
     def get_hull_trace_and_area(
-        self, x_prop="volume_cube_root", y_prop="band_gap", colour=(0, 0, 0), opacity=0.2, colour_by_centroid=False
-    ):
+        self,
+        x_prop: SupportedProperties = "volume_cube_root",
+        y_prop: SupportedProperties = "band_gap",
+        color: Tuple[int, int, int] = (0, 0, 0),
+        opacity: float = 0.2,
+        colour_by_centroid: bool = False
+    ) -> Tuple[go.Trace, float]:
+        """
+        Get a single convex hull trace in a plotly format, and the
+        area of the convex hull.
+
+        :param x_prop: Specified materials property (default: "volume_cube_root").
+        :param y_prop: Another specified materials property (default: "band_gap").
+        :param color: Specified rgb color.
+        :param opacity: Opacity.
+        :param colour_by_centroid: Whether to color according to centroid value.
+        :return: Convex hull plotly figure and the area of the hull.
+        """
 
         hull, centroid, area = self.get_convex_hull_and_centroid(x_prop, y_prop)
 
@@ -774,7 +882,7 @@ class AlloySystem(MSONable):
 
         if y_prop == "band_gap" and colour_by_centroid:
             try:
-                colour = ev_to_rgb(centroid[1])
+                color = ev_to_rgb(centroid[1])
             except ValueError:  # wavelength out of range
                 pass
 
@@ -782,7 +890,7 @@ class AlloySystem(MSONable):
             x=[p[0] for p in hull],
             y=[p[1] for p in hull],
             fill="toself",
-            fillcolor=f"rgba({colour[0]},{colour[1]},{colour[2]},{opacity})",
+            fillcolor=f"rgba({color[0]},{color[1]},{color[2]},{opacity})",
             hoverinfo="skip",
             mode="none",
             showlegend=False,
@@ -792,20 +900,31 @@ class AlloySystem(MSONable):
 
     def plot(
         self,
-        x_prop="volume_cube_root",
-        y_prop="band_gap",
-        symbol="theoretical",
-        column_mapping=None,
-        plotly_pxline_kwargs=None,
-        plotly_pxscatter_kwargs=None,
-        plot_members=True,
-        member_plotly_pxscatter_kwargs=None
-    ):
+        x_prop: SupportedProperties = "volume_cube_root",
+        y_prop: SupportedProperties = "band_gap",
+        symbol: str = "theoretical",
+        column_mapping: Dict = None,
+        plotly_pxline_kwargs: Dict = None,
+        plotly_pxscatter_kwargs: Dict = None,
+        plot_members: bool = True,
+        member_plotly_pxscatter_kwargs: Dict = None
+    ) -> go.Figure:
+        """
+        Get plot of alloys system space for two specified material properties.
+
+        :param x_prop: Specified materials property (default: "volume_cube_root").
+        :param y_prop: Another specified materials property (default: "band_gap").
+        :param symbol: Properties to designate as symbols on plot.
+        :param column_mapping: Dictionary to set human-readable column names for properties.
+        :param plotly_pxline_kwargs: Plotly line graph keyward arguments.
+        :param plotly_pxscatter_kwargs: Plotly scatter graph keyward arguments.
+        :param plot_members: Whether to plot alloy members within the alloy system.
+        :param member_plotly_pxscatter_kwargs: Plotly line graph keyward arguments for members.
+        :return: Plot of alloy system (AlloySystem) phase space.
+        """
 
         data = []
         member_data = []
-
-        # used to set human-readable column names
         column_mapping = column_mapping or {x_prop: x_prop, y_prop: y_prop, symbol: symbol}
 
         for pair in self.alloy_pairs:
@@ -814,7 +933,7 @@ class AlloySystem(MSONable):
                     column_mapping[x_prop]: getattr(pair, f"{x_prop}_a", None) or pair.properties_a.get(x_prop),
                     column_mapping[y_prop]: getattr(pair, f"{y_prop}_a", None) or pair.properties_a.get(y_prop),
                     column_mapping[symbol]: getattr(pair, f"{symbol}_a", None) or pair.properties_a.get(symbol),
-                    "mpid": pair.id_a,
+                    "id": pair.id_a,
                     "formula": pair.formula_a,
                     "pair_id": pair.pair_id,
                     "has_members": len(pair.members) > 0
@@ -825,7 +944,7 @@ class AlloySystem(MSONable):
                     column_mapping[x_prop]: getattr(pair, f"{x_prop}_b", None) or pair.properties_b.get(x_prop),
                     column_mapping[y_prop]: getattr(pair, f"{y_prop}_b", None) or pair.properties_b.get(y_prop),
                     column_mapping[symbol]: getattr(pair, f"{symbol}_b", None) or pair.properties_b.get(symbol),
-                    "mpid": pair.id_b,
+                    "id": pair.id_b,
                     "formula": pair.formula_b,
                     "pair_id": pair.pair_id,
                     "has_members": len(pair.members) > 0
@@ -849,7 +968,7 @@ class AlloySystem(MSONable):
             line_group="pair_id",
             text="formula",
             labels="formula",
-            hover_data=["formula", "mpid"],
+            hover_data=["formula", "id"],
             title=f"Alloy system: {self.alloy_id}",
             markers=False,
             line_dash="has_members",
@@ -1020,9 +1139,9 @@ class FormulaAlloyPair(MSONable):
         for i in range(len(intersection_to_pairs) - 1):
             x_segment_start = intersection_to_pairs[i][0]
             x_segment_end = intersection_to_pairs[i + 1][0]
-            mpid_pair = set(intersection_to_pairs[i][1]).intersection(intersection_to_pairs[i + 1][1]).pop()
+            id_pair = set(intersection_to_pairs[i][1]).intersection(intersection_to_pairs[i + 1][1]).pop()
             segments.append(
-                {"x_segment_start": x_segment_start, "x_segment_end": x_segment_end, "mpid_pair": mpid_pair}
+                {"x_segment_start": x_segment_start, "x_segment_end": x_segment_end, "id_pair": id_pair}
             )
 
         return hull_df, segments
@@ -1048,7 +1167,7 @@ class FormulaAlloyPair(MSONable):
             "x",
             "is",
             "formula",
-            "mpid",
+            "id",
             "e_above_hull",
             "formation_energy",
             "spacegroup_intl_number",

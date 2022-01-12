@@ -726,21 +726,21 @@ class AlloySystem(MSONable):
     An alloy system defined by a group of alloy pairs (defined by AlloyPair).
 
     Attributes:
-        ids (List[str]): A flat list of all identifiers in the
+        ids (Set[str]): A flat list of all identifiers in the
             alloy system.
         alloy_pairs (List[AlloyPair]): A list of the alloy pairs
             belonging to this system.
         alloy_id (str): A unique identifier for this alloy system.
-        n_pairs (str): Number of alloys pairs in this alloy system.
+        n_pairs (int): Number of alloys pairs in this alloy system.
         chemsys (str): The chemical system of this alloy system.
-        chemsys_size (str): Number of elements in chemical system.
-        pair_ids (List[str]): A list of id pairs defining
+        chemsys_size (int): Number of elements in chemical system.
+        pair_ids (Set[str]): A list of id pairs defining
             the given alloy pair (where ids are underscore
             delimited and given in lexicographical order of their
             reduced formula, this format matches the format
             from pair_id given in alloy pairs so is easy to
             query in a database).
-        has_members (bool = False): Whether there are alloy members
+        has_members (bool): Whether there are alloy members
             (defined by AlloyMember) in this alloy system.
         members (List[AlloyMember]): Flat list of alloy members
             (defined by AlloyMember) that make up the system.
@@ -1040,19 +1040,57 @@ def combine_systems(alloy_systems: List[AlloySystem]) -> List[AlloySystem]:
 
 
 @dataclass
-class FormulaAlloyPair(MSONable):
+class AlloySegment(MSONable):
+    """
+    A segment within an alloy, consisting of a segment start composition,
+    segment end composition, and the corresponding pair of identifiers.
 
-    segments: List
+    Attributes:
+        x_segment_start (float): The fractional composition of the start of a segment
+            (between 0 and 1).
+        x_segment_end (float): The fractional composition of the end of a segment
+            (between 0 and 1).
+        pair_id (str): A unique identifier for the specified alloy pair.
+
+    """
+
+    x_segment_start: float
+    x_segment_end: float
+    pair_id: str
+
+@dataclass
+class FormulaAlloyPair(MSONable):
+    """
+    Data class for creating a formula alloy pair which defines a set of all alloy pairs
+    (of class AlloyPair) between two end-point materials A and B of the same
+    formula but of different polymorphs. This class is used to find which polymorphs
+    might be stable at a given alloy content x.
+
+    Use the .from_pairs() method to automatically determine segments.
+
+    Attributes:
+        segments (List): Group of segments within an alloy, consisting of a
+            segment start composition, segment end composition, and the
+            corresponding pair of identifiers.
+        pairs (List[AlloyPair]): List of alloy pairs that comprise a specified
+            pair of formulas.
+
+    """
+
+    segments: List[AlloySegment]
     pairs: List[AlloyPair]
 
     @classmethod
     def from_pairs(cls, pairs: List[AlloyPair]) -> List["FormulaAlloyPair"]:
         """
-        Gets halfspace segments and pairs for a set of AlloyPair objects
+        Gets list of FormulaAlloyPair objects for a set of AlloyPair objects
 
-        Args:
-            pairs
-
+        :param pairs: List of alloy pairs that comprise a specified
+            pair of formulas.
+        :return: Formula alloy pairs, containing (1) input pairs and
+            (2) group of segments within an alloy, consisting of a
+            segment start composition, segment end composition, and the
+            corresponding alloy pair identifiers.
         """
 
         pairs = sorted(pairs, key=lambda pair: pair.pair_formulas)
@@ -1139,9 +1177,11 @@ class FormulaAlloyPair(MSONable):
         for i in range(len(intersection_to_pairs) - 1):
             x_segment_start = intersection_to_pairs[i][0]
             x_segment_end = intersection_to_pairs[i + 1][0]
-            id_pair = set(intersection_to_pairs[i][1]).intersection(intersection_to_pairs[i + 1][1]).pop()
+            pair_id = set(intersection_to_pairs[i][1]).intersection(intersection_to_pairs[i + 1][1]).pop()
             segments.append(
-                {"x_segment_start": x_segment_start, "x_segment_end": x_segment_end, "id_pair": id_pair}
+                AlloySegment(x_segment_start=x_segment_start,
+                             x_segment_end=x_segment_end,
+                             pair_id=pair_id)
             )
 
         return hull_df, segments
@@ -1161,7 +1201,16 @@ class FormulaAlloyPair(MSONable):
         df_polymorphs["x"] = [alloy_map[iz] for iz in df_polymorphs["pretty_formula"]]
         return df_polymorphs
 
-    def plot(self, supplement_with_mp=True, w=1000, h=400):
+    def plot(self, supplement_with_mp: bool = True, w: float = 1000, h: float = 400) -> go.Figure:
+        """
+        Get a half-space hull plot for a specified formula alloy pair.
+
+        :param supplement_with_mp: Whether to plot additional MP structures at end-point compositions,
+            that are not defined as part of an alloy pair.
+        :param w: Plot width.
+        :param h: Plot height.
+        :return: Half-space hull plotly figure.
+        """
 
         fields = [
             "x",

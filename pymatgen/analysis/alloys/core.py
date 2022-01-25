@@ -763,6 +763,13 @@ class AlloySystem(MSONable):
     # property_ranges: Dict[SupportedProperties, Tuple[float, float]] = field(init=False)
 
     def __post_init__(self):
+
+        # due to type changes when re-serializing from JSON via from_dict()
+        if isinstance(self.ids, list):
+            self.ids = set(self.ids)
+        if isinstance(self.pair_ids, list):
+            self.pair_ids = set(self.pair_ids)
+
         self.alloy_id = hashlib.sha256("_".join(sorted(self.ids)).encode("utf-8")).hexdigest()[:6]
 
         self.n_pairs = len(self.alloy_pairs)
@@ -1054,14 +1061,6 @@ class AlloySystem(MSONable):
         d["ids"] = list(d["ids"])
         d["pair_ids"] = list(d["ids"])
         return d
-
-    @classmethod
-    def from_dict(cls, d):
-        # because JSON doesn't have a set type
-        # alternative would be to use list, but set more appropriate
-        d["ids"] = set(d["ids"])
-        d["pair_ids"] = set(d["ids"])
-        return super(cls).from_dict(d)
 
     def as_dict_mongo(self):
         # do not store AlloyPairs?

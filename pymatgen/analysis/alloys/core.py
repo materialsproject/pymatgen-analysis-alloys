@@ -871,7 +871,18 @@ class AlloySystem(MSONable):
                 if ((pair.id_a, pair.id_b) in subgraph.edges) or ((pair.id_b, pair.id_a) in subgraph.edges)
             ]
 
-        return [AlloySystem(ids=set(subgraph), alloy_pairs=get_pairs_from_subgraph(subgraph)) for subgraph in subgraphs]
+        filtered_systems = [
+            AlloySystem(ids=set(subgraph), alloy_pairs=get_pairs_from_subgraph(subgraph)) for subgraph in subgraphs
+        ]
+
+        if origin:
+            if len(filtered_systems) > 1:
+                raise Exception(
+                    "More than one filtered system contains the origin, this shouldn't happen! Debug required."
+                )
+            return filtered_systems[0]
+        else:
+            return filtered_systems
 
     def get_convex_hull_and_centroid(
         self, x_prop: SupportedProperties = "volume_cube_root", y_prop: SupportedProperties = "band_gap"

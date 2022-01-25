@@ -1055,6 +1055,7 @@ class AlloySystem(MSONable):
         d["pair_ids"] = list(d["ids"])
         return d
 
+    @classmethod
     def from_dict(cls, d):
         # because JSON doesn't have a set type
         # alternative would be to use list, but set more appropriate

@@ -25,7 +25,7 @@ setup(
     author_email="rwoodsrobinson@lbl.gov",
     maintainer="Rachel Woods-Robinson, Matthew Horton",
     url="https://github.com/materialsproject/pymatgen-alloys",
-    description="A pymatgen add-on library with classes useful for describing alloy/disordered systems.",
+    description="A pymatgen add-on library with classes useful for describing alloy (disordered) systems.",
     long_description=desc,
     keywords=["pymatgen"],
     classifiers=[

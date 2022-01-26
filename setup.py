@@ -1,6 +1,8 @@
 # coding: utf-8
-# Copyright (c) Materials Virtual Lab
-# Distributed under the terms of the Modified BSD License.
+
+# Original pymatgen add-on template Copyright (c) Materials Virtual Lab
+# and distributed under the terms of the Modified BSD License.
+# pymatgen-analysis-alloys is Copyright (c) Rachel Woods-Robinson, Matthew Horton
 
 from setuptools import setup, find_namespace_packages
 

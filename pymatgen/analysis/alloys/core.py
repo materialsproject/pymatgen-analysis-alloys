@@ -31,7 +31,8 @@ from scipy.constants import c, h, elementary_charge
 from pymatgen.core.composition import Species, Composition
 from pymatgen.analysis.structure_matcher import ElementComparator
 from pymatgen.core.structure import Structure
-from pymatgen.ext.matproj import MPRester
+from mp_api import MPRester
+# from pymatgen.ext.matproj import MPRester TODO: this might break something?
 from pymatgen.transformations.standard_transformations import (
     AutoOxiStateDecorationTransformation,
     ConventionalCellTransformation,
@@ -223,7 +224,7 @@ class AlloyPair(MSONable):
         :param alloying_element_b: Element to be alloyed in end-point material B.
         :return: Formatted alloy formula (e.g. AₓB₁₋ₓC).
         """
-        return unicodeify(formula_a).replace(alloying_element_a, f"({alloying_element_b}ₓ{alloying_element_a}₁₋ₓ)",)
+        return unicodeify(formula_a).replace(alloying_element_a, f"({alloying_element_b}ₓ{alloying_element_a}₁₋ₓ)", )
 
     def __str__(self):
         return f"AlloyPair {self.alloy_formula}"
@@ -274,14 +275,14 @@ class AlloyPair(MSONable):
 
     @classmethod
     def from_structures(
-        cls,
-        structures: Tuple[Structure, Structure],
-        structures_with_oxidation_states: Tuple[Structure, Structure],
-        ids: Tuple[str, str],
-        properties: Optional[Tuple[Dict[SupportedProperties, Any], Dict[SupportedProperties, Any]]] = None,
-        ltol: float = LTOL,
-        stol: float = STOL,
-        angle_tol: float = ANGLE_TOL,
+            cls,
+            structures: Tuple[Structure, Structure],
+            structures_with_oxidation_states: Tuple[Structure, Structure],
+            ids: Tuple[str, str],
+            properties: Optional[Tuple[Dict[SupportedProperties, Any], Dict[SupportedProperties, Any]]] = None,
+            ltol: float = LTOL,
+            stol: float = STOL,
+            angle_tol: float = ANGLE_TOL,
     ) -> "AlloyPair":
         """
         Function to construct AlloyPair class.
@@ -338,7 +339,7 @@ class AlloyPair(MSONable):
             oxi_state_a,
             oxi_state_b,
             isoelectronic,
-        ) = cls._get_oxi_state_info(anions_a, cations_a, anions_b, cations_b, alloying_element_a, alloying_element_b,)
+        ) = cls._get_oxi_state_info(anions_a, cations_a, anions_b, cations_b, alloying_element_a, alloying_element_b, )
 
         conv = ConventionalCellTransformation()
         conv_structure_a = conv.apply_transformation(structure_a)
@@ -400,12 +401,12 @@ class AlloyPair(MSONable):
 
     @staticmethod
     def _get_oxi_state_info(
-        anions_a: List[str],
-        cations_a: List[str],
-        anions_b: List[str],
-        cations_b: List[str],
-        alloying_element_a: str,
-        alloying_element_b: str,
+            anions_a: List[str],
+            cations_a: List[str],
+            anions_b: List[str],
+            cations_b: List[str],
+            alloying_element_a: str,
+            alloying_element_b: str,
     ) -> Tuple[
         Optional[float], Optional[str], Optional[str], Optional[float], Optional[float], Optional[bool],
     ]:
@@ -472,7 +473,7 @@ class AlloyPair(MSONable):
         )
 
     def is_member(
-        self, structure: Structure, ltol: float = LTOL, stol: float = STOL, angle_tol: float = ANGLE_TOL
+            self, structure: Structure, ltol: float = LTOL, stol: float = STOL, angle_tol: float = ANGLE_TOL
     ) -> bool:
         """
         Check if a Structure could be a member of the AlloyPair.
@@ -505,7 +506,7 @@ class AlloyPair(MSONable):
             # can sometimes fail due to spglib returning None, unfortunately
             spacegroup_intl_number = structure.get_space_group_info()[1]
             if (self.spacegroup_intl_number_a == spacegroup_intl_number) or (self.spacegroup_intl_number_b) == (
-                spacegroup_intl_number
+                    spacegroup_intl_number
             ):
                 # heuristic! may give false positives
                 return True
@@ -521,12 +522,12 @@ class AlloyPair(MSONable):
         structure_b.replace_species({self.alloying_element_a: self.alloying_element_b})
 
         if self.structure_a.matches(
-            structure_a, ltol=ltol, stol=stol, angle_tol=angle_tol, comparator=ElementComparator()
+                structure_a, ltol=ltol, stol=stol, angle_tol=angle_tol, comparator=ElementComparator()
         ):
             return True
 
         if self.structure_b.matches(
-            structure_b, ltol=ltol, stol=stol, angle_tol=angle_tol, comparator=ElementComparator()
+                structure_b, ltol=ltol, stol=stol, angle_tol=angle_tol, comparator=ElementComparator()
         ):
             return True
 
@@ -562,11 +563,11 @@ class AlloyPair(MSONable):
 
     @staticmethod
     def _get_alloying_elements_for_commensurate_structures(
-        structure_a: Structure,
-        structure_b: Structure,
-        ltol: float = LTOL,
-        stol: float = STOL,
-        angle_tol: float = ANGLE_TOL,
+            structure_a: Structure,
+            structure_b: Structure,
+            ltol: float = LTOL,
+            stol: float = STOL,
+            angle_tol: float = ANGLE_TOL,
     ) -> Tuple[str, str]:
         """
         Run a series of checks to ensure alloys structures are commensurate to the first order, and
@@ -605,7 +606,7 @@ class AlloyPair(MSONable):
         structure_b_copy.replace_species({alloying_element_b: alloying_element_a})
 
         if not structure_a.matches(
-            structure_b_copy, ltol=ltol, stol=stol, angle_tol=angle_tol, comparator=ElementComparator(),
+                structure_b_copy, ltol=ltol, stol=stol, angle_tol=angle_tol, comparator=ElementComparator(),
         ):
             raise InvalidAlloy("End-point structures do not match")
 
@@ -758,6 +759,7 @@ class AlloySystem(MSONable):
     has_members: bool = False
     members: List[AlloyMember] = field(default_factory=list, repr=False)
     additional_members: List[AlloyMember] = field(default_factory=list, repr=False)
+
     # TODO: sets of alloying_elements etc?
     # TODO: property ranges for searching?
     # property_ranges: Dict[SupportedProperties, Tuple[float, float]] = field(init=False)
@@ -837,7 +839,7 @@ class AlloySystem(MSONable):
                     return getattr(pair, f"{prop}")
 
     def systems_from_filter(
-        self, pair_filter: Callable[[AlloyPair], bool], origin: Optional[str] = None
+            self, pair_filter: Callable[[AlloyPair], bool], origin: Optional[str] = None
     ) -> Union[List["AlloySystem"], "AlloySystem"]:
         """
         Filter the AlloySystem by a provided constraint, e.g. to remove AlloyPair
@@ -885,7 +887,7 @@ class AlloySystem(MSONable):
             return filtered_systems
 
     def get_convex_hull_and_centroid(
-        self, x_prop: SupportedProperties = "volume_cube_root", y_prop: SupportedProperties = "band_gap"
+            self, x_prop: SupportedProperties = "volume_cube_root", y_prop: SupportedProperties = "band_gap"
     ) -> Tuple[List, List, float]:
         """
         Get convex hull, centroid, and area from specified material properties.
@@ -904,12 +906,12 @@ class AlloySystem(MSONable):
         return list(hull.exterior.coords), list(hull.centroid.coords)[0], hull.area
 
     def get_hull_trace_and_area(
-        self,
-        x_prop: SupportedProperties = "volume_cube_root",
-        y_prop: SupportedProperties = "band_gap",
-        color: Tuple[int, int, int] = (0, 0, 0),
-        opacity: float = 0.2,
-        colour_by_centroid: bool = False,
+            self,
+            x_prop: SupportedProperties = "volume_cube_root",
+            y_prop: SupportedProperties = "band_gap",
+            color: Tuple[int, int, int] = (0, 0, 0),
+            opacity: float = 0.2,
+            colour_by_centroid: bool = False,
     ) -> Tuple[go.Trace, float]:
         """
         Get a single convex hull trace in a plotly format, and the
@@ -947,15 +949,15 @@ class AlloySystem(MSONable):
         return trace, area
 
     def plot(
-        self,
-        x_prop: SupportedProperties = "volume_cube_root",
-        y_prop: SupportedProperties = "band_gap",
-        symbol: str = "theoretical",
-        column_mapping: Dict = None,
-        plotly_pxline_kwargs: Dict = None,
-        plotly_pxscatter_kwargs: Dict = None,
-        plot_members: bool = True,
-        member_plotly_pxscatter_kwargs: Dict = None,
+            self,
+            x_prop: SupportedProperties = "volume_cube_root",
+            y_prop: SupportedProperties = "band_gap",
+            symbol: str = "theoretical",
+            column_mapping: Dict = None,
+            plotly_pxline_kwargs: Dict = None,
+            plotly_pxscatter_kwargs: Dict = None,
+            plot_members: bool = True,
+            member_plotly_pxscatter_kwargs: Dict = None,
     ) -> go.Figure:
         """
         Get plot of alloys system space for two specified material properties.
@@ -1027,6 +1029,7 @@ class AlloySystem(MSONable):
         plotly_pxline_kwargs = plotly_pxline_kwargs or {}
         pxline_kwargs.update(plotly_pxline_kwargs)
 
+        # initialize figure
         fig = px.line(df, column_mapping[x_prop], column_mapping[y_prop], **pxline_kwargs)
         fig.update_traces(textposition="top center")
 
@@ -1229,26 +1232,64 @@ class FormulaAlloyPair(MSONable):
         return hull_df, segments
 
     @staticmethod
-    def _get_alloy_polymorphs_from_mp(df_alloy):
+    def _get_alloy_polymorphs_from_mp(df_alloy, old_API=False, api_key=None):
 
         formula_a = list(df_alloy.loc[df_alloy["is"] == "a", "formula"])[0]
         formula_b = list(df_alloy.loc[df_alloy["is"] == "b", "formula"])[0]
-        with MPRester() as mpr:
-            polymorphs = mpr.query(
-                {"pretty_formula": {"$in": [formula_a, formula_b]}},
-                ["pretty_formula", "task_id", "spacegroup.symbol", "energy_above_hull", "theoretical"],
-            )
-        df_polymorphs = pd.DataFrame(polymorphs)
+        fields = ["formula_pretty", "material_id", "symmetry.symbol", "energy_above_hull", "theoretical"]
+
+        # new API
+        if not old_API:
+            with MPRester(api_key) as mpr:
+                polymorphs_a = mpr.query(
+                    formula=[formula_a],
+                    fields=fields,
+                )
+                polymorphs_b = mpr.query(
+                    formula=[formula_b],
+                    fields=fields,
+                )
+            polymorphs = polymorphs_a + polymorphs_b
+            df_polymorphs = pd.DataFrame([{
+                "formula": p.formula_pretty, "task_id": p.material_id, "spacegroup.symbol": p.symmetry.symbol, \
+                "theoretical": p.theoretical, "energy_above_hull": p.energy_above_hull} \
+                for p in polymorphs])
+            alloy_map = {formula_a: 0, formula_b: 1}
+            df_polymorphs["x"] = [alloy_map[iz] for iz in df_polymorphs["formula"]]
+
+            # old API
+        else:
+            with MPRester(api_key) as mpr:
+                polymorphs = mpr.query(
+                    {"pretty_formula": {"$in": [formula_a, formula_b]}},
+                    fields,
+                )
+            df_polymorphs = pd.DataFrame(polymorphs)
+            df_polymorphs = df_polymorphs.rename(columns={'e_above_hull': 'energy_above_hull'})
+
         alloy_map = {formula_a: 0, formula_b: 1}
-        df_polymorphs["x"] = [alloy_map[iz] for iz in df_polymorphs["pretty_formula"]]
+        df_polymorphs["x"] = [alloy_map[iz] for iz in df_polymorphs["formula"]]
+
         return df_polymorphs
 
-    def plot(self, supplement_with_mp: bool = True, w: float = 1000, h: float = 400) -> go.Figure:
+    def plot(
+            self,
+            supplement_with_mp: bool = True,
+            supplement_with_members: bool = True,
+            w: float = 1000,
+            h: float = 400,
+            color = "pair_id",
+            color_map: Dict = None,
+            y_limit: float = None,
+            api_key: str = None,
+            old_API: bool = False
+    ) -> go.Figure:
         """
         Get a half-space hull plot for a specified formula alloy pair.
 
         :param supplement_with_mp: Whether to plot additional MP structures at end-point compositions,
             that are not defined as part of an alloy pair.
+        :param supplement_with_members: Whether to plot members along alloy pair tieline.
         :param w: Plot width.
         :param h: Plot height.
         :return: Half-space hull plotly figure.
@@ -1267,17 +1308,26 @@ class FormulaAlloyPair(MSONable):
             "alloy_formula",
         ]
         df = pd.DataFrame(chain.from_iterable(pair.as_records(fields=fields) for pair in self.pairs))
-
         hull_df, _ = FormulaAlloyPair._get_hull(df)
+
+        # make a color map
+        if not color_map:
+            colors = px.colors.DEFAULT_PLOTLY_COLORS
+            color_keys = df[color].unique()
+            color_map = {k: colors[idx] for idx, k in enumerate(color_keys)}
+            if len(color_keys) > len(colors):
+                raise ValueError("The number of alloy pairs exceeds \
+                the number of colors. Please supply your own color map!")
 
         fig = px.line(
             df,
             x="x",
             y="energy_above_hull",
-            color="pair_id",
+            color=color,
             line_group="pair_id",
             line_dash_sequence=["dot"],
-            hover_data=fields,
+            color_discrete_map=color_map,
+            #         hover_data=fields,
         )
         fig.add_scatter(
             x=hull_df["x"],
@@ -1287,11 +1337,11 @@ class FormulaAlloyPair(MSONable):
             opacity=0.5,
             marker_color="black",
             marker_size=10,
-            hoverinfo=None,
+            hoverinfo="all",
         )
 
         if supplement_with_mp:
-            df_polymorphs = FormulaAlloyPair._get_alloy_polymorphs_from_mp(df)
+            df_polymorphs = FormulaAlloyPair._get_alloy_polymorphs_from_mp(df, api_key=api_key, old_API=old_API)
             fig.add_scatter(
                 x=df_polymorphs["x"],
                 y=df_polymorphs["energy_above_hull"],
@@ -1302,20 +1352,49 @@ class FormulaAlloyPair(MSONable):
                 hoverinfo="all",
             )
 
+        if supplement_with_members:
+            try:
+                for pair in self.pairs:
+
+                    member_dicts = []
+                    for i, member in enumerate(pair.members):
+                        # check for duplicates, comes from member bug
+                        if not member.id_ in [d["id_"] for d in member_dicts]:
+                            if member.db == "mp":
+                                member_dict = member.as_dict()
+                                member_dict["member_formula"] = Composition(member.composition).reduced_formula
+                                member_dict["pair_id"] = pair.pair_id
+                                member_dict["pair_formula"] = pair.pair_formula
+                                member_dict["alloy_formula"] = pair.alloy_formula
+
+                                #                     if member.db == "mp":
+                                with MPRester(api_key) as mpr:
+                                    ehull = mpr.thermo.get_data_by_id(member.id_).energy_above_hull
+                                member_dict["energy_above_hull"] = ehull
+                                member_dicts.append(member_dict)
+                    member_df = pd.DataFrame(member_dicts)
+                    fig.add_scatter(
+                        x=member_df["x"], y=member_df["energy_above_hull"], mode="markers",
+                        marker={"color": color_map[pair.pair_id], "symbol": "square"}, name=f"member of {pair.pair_id}"
+                    )
+            except:
+                raise ValueError("Warning: supplement_with_members set to True, but pairs have no members")
+
         fig.update_layout(title=df["alloy_formula"][0], legend_title_text="")
         fig.update_yaxes(title="E<sub>hull</sub> (eV/atom)")
+        if not y_limit:
+            y_limit = df["energy_above_hull"].max()
+        fig.update_yaxes(range=(-y_limit * 0.15, y_limit + (y_limit * 0.15)))
         fig.update_layout(
             autosize=False,
             xaxis=dict(showgrid=False, mirror=True),
             yaxis=dict(showgrid=False, mirror=True),
             height=h,
             width=w,
-            # bargap=0,
             hovermode="closest",
             template="simple_white",
             font=dict(family="Helvetica", size=16, color="black"),
         )
-
         return fig
 
     def __str__(self):

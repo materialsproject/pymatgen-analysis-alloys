@@ -1,6 +1,8 @@
 # coding: utf-8
-# Copyright (c) Materials Virtual Lab
-# Distributed under the terms of the Modified BSD License.
+
+# Original pymatgen add-on template Copyright (c) Materials Virtual Lab
+# and distributed under the terms of the Modified BSD License.
+# pymatgen-analysis-alloys is Copyright (c) Rachel Woods-Robinson, Matthew Horton
 
 from setuptools import setup, find_namespace_packages
 
@@ -23,8 +25,9 @@ setup(
     author_email="rwoodsrobinson@lbl.gov",
     maintainer="Rachel Woods-Robinson, Matthew Horton",
     url="https://github.com/materialsproject/pymatgen-alloys",
-    description="A pymatgen add-on library with classes useful for describing alloy/disordered systems.",
-    long_description=desc,
+    description="A pymatgen add-on library with classes useful for describing alloy (disordered) systems.",
+    long_description="A pymatgen add-on library with classes useful for describing alloy (disordered) systems.",
+    #long_description=desc,
     keywords=["pymatgen"],
     classifiers=[
         "Programming Language :: Python :: 3",

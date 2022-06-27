@@ -23,6 +23,8 @@ from monty.serialization import loadfn
 from pathlib import Path
 from itertools import groupby, chain
 from monty.json import MSONable
+from plotly.subplots import make_subplots
+from pymatgen.analysis.phase_diagram import PhaseDiagram
 from scipy.spatial.qhull import HalfspaceIntersection
 from shapely.geometry import MultiPoint
 from typing import List, Tuple, Optional, Dict, Literal, Any, Set, Callable, Union
@@ -1276,17 +1278,38 @@ class FormulaAlloyPair(MSONable):
             self,
             supplement_with_mp: bool = True,
             supplement_with_members: bool = True,
-            w: float = 1000,
-            h: float = 400,
-            color = "pair_id",
+            add_hull_shading: bool = True,
+            add_decomposition: bool = False,
+            w: float = 650,
+            h: float = 600,
+            color: str = "pair_id",
+            color_scale: str = "default",
             color_map: Dict = None,
+            n_colors: int = 9,
             y_limit: float = None,
+            e_above_hull_type: Literal["interpolated", "mp"] = "interpolated",
+            hull_shading_opacity_factor: float = 0.2,
             api_key: str = None,
-            old_API: bool = False
+            old_API: bool = False,  # TODO: should remove old API stuff before commit
+            plot_critical_lines: bool = False,
+            fap_plot_domain: Tuple[float, float] = (0.22, 1),
+            decomp_plot_domain: Tuple[float, float] = (0, 0.18),
     ) -> go.Figure:
         """
         Get a half-space hull plot for a specified formula alloy pair.
 
+        :param hull_shading_opacity_factor:
+        :param e_above_hull_type:
+        :param decomp_plot_domain:
+        :param fap_plot_domain:
+        :param old_API:
+        :param api_key:
+        :param y_limit:
+        :param color:
+        :param color_map:
+        :param add_decomposition:
+        :param add_hull_shading:
+        :param plot_critical_lines:
         :param supplement_with_mp: Whether to plot additional MP structures at end-point compositions,
             that are not defined as part of an alloy pair.
         :param supplement_with_members: Whether to plot members along alloy pair tieline.
@@ -1308,18 +1331,26 @@ class FormulaAlloyPair(MSONable):
             "alloy_formula",
         ]
         df = pd.DataFrame(chain.from_iterable(pair.as_records(fields=fields) for pair in self.pairs))
-        hull_df, _ = FormulaAlloyPair._get_hull(df)
+        hull_df, _ = self._get_hull(df)
 
         # make a color map
         if not color_map:
-            colors = px.colors.DEFAULT_PLOTLY_COLORS
+            if color_scale == "default":
+                colors = px.colors.DEFAULT_PLOTLY_COLORS
+            else:
+                n_colors = n_colors
+                range_of_scale = (0, 1)
+                colors = px.colors.sample_colorscale(
+                    color_scale, n_colors,
+                    low=range_of_scale[0], high=range_of_scale[1]
+                )
             color_keys = df[color].unique()
             color_map = {k: colors[idx] for idx, k in enumerate(color_keys)}
             if len(color_keys) > len(colors):
                 raise ValueError("The number of alloy pairs exceeds \
                 the number of colors. Please supply your own color map!")
 
-        fig = px.line(
+        px_fig = px.line(
             df,
             x="x",
             y="energy_above_hull",
@@ -1327,8 +1358,18 @@ class FormulaAlloyPair(MSONable):
             line_group="pair_id",
             line_dash_sequence=["dot"],
             color_discrete_map=color_map,
-            #         hover_data=fields,
+            markers=True,
+            hover_data=fields,
         )
+
+        if add_decomposition:
+            fig = make_subplots(rows=2, cols=1, shared_xaxes=True)
+        else:
+            fig = make_subplots(rows=1, cols=1)
+
+        fig.add_traces(px_fig.data)
+        # fig.update_layout(px_fig.layout)
+
         fig.add_scatter(
             x=hull_df["x"],
             y=hull_df["energy_above_hull"],
@@ -1339,9 +1380,12 @@ class FormulaAlloyPair(MSONable):
             marker_size=10,
             hoverinfo="all",
         )
+        fig.update_traces(marker=dict(size=10), line=dict(width=4))
+        # TODO: just change halfspace hull
+        fig.update_traces(selector={"name": "hull"}, marker=dict(size=15), line=dict(width=8))
 
         if supplement_with_mp:
-            df_polymorphs = FormulaAlloyPair._get_alloy_polymorphs_from_mp(df, api_key=api_key, old_API=old_API)
+            df_polymorphs = self._get_alloy_polymorphs_from_mp(df, api_key=api_key, old_API=old_API)
             fig.add_scatter(
                 x=df_polymorphs["x"],
                 y=df_polymorphs["energy_above_hull"],
@@ -1349,39 +1393,67 @@ class FormulaAlloyPair(MSONable):
                 marker_color="black",
                 marker_size=5,
                 name="MP polymorphs",
-                hoverinfo="all",
+                hoverinfo="text",
+                hovertext=list(np.array(df_polymorphs))
             )
+            # TODO: figure out how to reorder so that there's no bug!
+            # fig.data = tuple(list(fig.data[1:]) + [fig.data[0]])
 
         if supplement_with_members:
-            try:
+
+            mp_member_ids = set()
+            for pair in self.pairs:
+                for member in pair.members:
+                    if member.db == "mp":
+                        mp_member_ids.add(member.id_)
+                # mp_member_ids.add({member.id_ for member in pair.members if member.db == "mp"})
+            member_records = []
+            if mp_member_ids:
+                with MPRester(api_key) as mpr:
+                    e_above_hulls = {doc.material_id: doc.energy_above_hull for doc in
+                                     mpr.thermo.search_thermo_docs(material_ids=list(mp_member_ids))}
+
                 for pair in self.pairs:
-
-                    member_dicts = []
                     for i, member in enumerate(pair.members):
-                        # check for duplicates, comes from member bug
-                        if not member.id_ in [d["id_"] for d in member_dicts]:
-                            if member.db == "mp":
-                                member_dict = member.as_dict()
-                                member_dict["member_formula"] = Composition(member.composition).reduced_formula
-                                member_dict["pair_id"] = pair.pair_id
-                                member_dict["pair_formula"] = pair.pair_formula
-                                member_dict["alloy_formula"] = pair.alloy_formula
+                        if member.db == "mp":
+                            member_records.append({
+                                "member_formula": Composition(member.composition).reduced_formula,
+                                "pair_id": pair.pair_id,  # why
+                                "pair_formula": pair.pair_formula,  # why
+                                "alloy_formula": pair.alloy_formula,  # why
+                                "spacegroup_intl_number": pair.spacegroup_intl_number_a,  # why
+                                "x": member.x,
+                                "interpolated_energy_above_hull": pair.get_property_with_vegards_law(member.x,
+                                                                                                     "energy_above_hull"),
+                                "mp_energy_above_hull": e_above_hulls.get(member.id_, "Unknown")
+                            })
 
-                                #                     if member.db == "mp":
-                                with MPRester(api_key) as mpr:
-                                    ehull = mpr.thermo.get_data_by_id(member.id_).energy_above_hull
-                                member_dict["energy_above_hull"] = ehull
-                                member_dicts.append(member_dict)
-                    member_df = pd.DataFrame(member_dicts)
+            if member_records:
+                member_df = pd.DataFrame(member_records)
+                # if e_above_hull_type == "interpolated":
+                #     e_above_hull = member_df["interpolated_energy_above_hull"]
+                # elif e_above_hull_type == "mp":
+                #     e_above_hull = member_df["mp_energy_above_hull"]
+                # else:
+                #     raise ValueError("Must specify ehull type!")
+
+                if color == "spacegroup_intl_number":
+                    member_color = "spacegroup_intl_number_a"
+
+                color_keys = member_df[color].unique()
+                for color_key in color_keys:
+                    member_df_plot = member_df[member_df[color] == color_key]
+                    #     member_df["color_rgb"][i] = color_map[color_key]
+                    e_above_hull = member_df_plot[e_above_hull_type + "_energy_above_hull"]
+                    pair_id = member_df_plot["pair_id"].unique()[0]
                     fig.add_scatter(
-                        x=member_df["x"], y=member_df["energy_above_hull"], mode="markers",
-                        marker={"color": color_map[pair.pair_id], "symbol": "square"}, name=f"member of {pair.pair_id}"
+                        x=member_df_plot["x"], y=e_above_hull, mode="markers",
+                        marker={"color": color_map[color_key], "symbol": "square"},
+                        name=f"member of {pair_id}",
                     )
-            except:
-                raise ValueError("Warning: supplement_with_members set to True, but pairs have no members")
 
         fig.update_layout(title=df["alloy_formula"][0], legend_title_text="")
-        fig.update_yaxes(title="E<sub>hull</sub> (eV/atom)")
+        fig.update_yaxes(title="<i>E</i><sub>hull</sub> (eV/atom)")
         if not y_limit:
             y_limit = df["energy_above_hull"].max()
         fig.update_yaxes(range=(-y_limit * 0.15, y_limit + (y_limit * 0.15)))
@@ -1395,7 +1467,247 @@ class FormulaAlloyPair(MSONable):
             template="simple_white",
             font=dict(family="Helvetica", size=16, color="black"),
         )
+
+        if add_hull_shading:
+            fig = self._add_halfspace_hull_shading(
+                fig,
+                opacity_factor=hull_shading_opacity_factor,
+                reorder_traces=False
+            )
+
+        if add_decomposition:
+            fig.update_traces(row=1, col=1)
+            decomp_df = self._get_decomp_df(api_key=api_key)
+            fig = self._add_decomp_figure(
+                fig,
+                decomp_df,
+                plot_critical_lines=plot_critical_lines,
+                fap_plot_domain=fap_plot_domain,
+                decomp_plot_domain=decomp_plot_domain,
+                row_decomp=2,
+                h=h,
+                w=w
+            )
+
         return fig
+
+    def _get_decomp_df(
+            self,
+            api_key: str = None,
+
+    ) -> Tuple[pd.DataFrame, List]:
+        """
+        Creates a dataframe of thermodynamic decomposition products for a given FormulaAlloyPair
+        for plotting purposes. Data comes from Materials Project.
+
+        :return:
+        """
+
+        # one example pair -- note this is a AlloyPair method, should be under different class?
+        test_pair = self.pairs[0]
+
+        formulas = [test_pair.formula_a, test_pair.formula_b]
+        elems = list(set([elem for elem in test_pair.chemsys.split("-")]))
+        with MPRester(api_key) as mpr:
+            mp_entries = mpr.get_entries_in_chemsys(elems)
+        phase_diagram = PhaseDiagram(mp_entries)
+
+        step_size = 0.01
+        all_decomp_products = set()
+        records = []
+        decomp_records = []
+
+        for x in np.arange(0, 1, step_size):
+            comp = (1 - float(x)) * Composition(formulas[0]) + float(x) * Composition(formulas[1])
+            decomp = phase_diagram.get_decomposition(comp)
+            all_decomp_products |= {p.composition.reduced_formula for p in decomp}
+            records.append(decomp)
+            for entry in decomp:
+                decomp_records.append({
+                    "x": x,
+                    "entry_id": entry.entry_id,
+                    "formula": entry.name,
+                    "fraction": decomp[entry],
+                    "critical": False,
+                })
+        # critical_x = []
+        for comp in phase_diagram.get_critical_compositions(Composition(formulas[0]), Composition(formulas[1])):
+            if comp == Composition(formulas[0]):
+                x = 0
+            elif comp == Composition(formulas[1]):
+                x = 1
+            else:
+                test_pair.get_x(comp)
+            decomp = phase_diagram.get_decomposition(comp)
+            all_decomp_products |= {p.composition.reduced_formula for p in decomp}
+            records.append(decomp)
+            # critical_x.append(x)
+            for entry in decomp:
+                decomp_records.append({
+                    "x": x,
+                    "entry_id": entry.entry_id,
+                    "formula": entry.name,
+                    "fraction": decomp[entry],
+                    "critical": True,
+                })
+        df = pd.DataFrame(decomp_records)
+
+        return df
+
+    @staticmethod
+    def _add_decomp_figure(
+            fig,
+            df,
+            plot_critical_lines=False,
+            fap_plot_domain=(0.22, 1),
+            decomp_plot_domain=(0, 0.18),
+            h=600,
+            w=650,
+            row_decomp=2,
+    ) -> go.Scatter():
+        """
+        Add decomposition information to a FormulaAlloyPair plot
+
+        :param row_decomp:
+        :param decomp_plot_domain:
+        :param fap_plot_domain:
+        :param plot_critical_lines:
+        :type fig: go.Scatter()
+        """
+        color_map = _get_colormap_from_keys(df["formula"].unique())
+        all_decomp_products = df.sort_values(by="x").formula.unique()
+        for i, formula in enumerate(all_decomp_products):
+            entry_id = df["entry_id"][i]
+            df_f = df[df["formula"] == formula]
+            #     fig.add_trace(go.Scatter(x=df_f["x"], y=df_f["fraction"], fill='tonexty')) # fill down to xaxis
+            fig.add_trace(go.Scatter(
+                x=df_f["x"], y=df_f["fraction"],
+                hoverinfo='x+y',
+                mode='lines',
+                name=f"{formula}: {entry_id}",
+                line=dict(width=0, color=color_map[formula]),
+                stackgroup='one',  # define stack group,
+
+            ), row=row_decomp, col=1)
+
+        if plot_critical_lines:
+            for x in set(df[df["critical"]]["x"]):
+                fig.add_trace(go.Scatter(
+                    x=(x, x), y=(0, 1),
+                    mode='lines',
+                    name="critical point",
+                    line=dict(width=1, color="black", dash='dot'),
+                    showlegend=False,
+                ), row=row_decomp, col=1)
+        fig.update_yaxes(range=(0, 1), title="fraction", row=row_decomp, col=1, mirror=True)
+        fig.update_xaxes(title="<i>x</i>", row=row_decomp, col=1, mirror=True)
+        fig.update_layout(
+            font=dict(family="Helvetica", size=14, color="black"),
+            yaxis2=dict(domain=decomp_plot_domain), yaxis1=dict(domain=fap_plot_domain),
+            height=h, width=w,
+        )
+
+        return fig
+
+    @staticmethod
+    def _add_halfspace_hull_shading(
+            fig,
+            e_hull_limit=0.1,
+            hull_tuple="auto",
+            shades=50,
+            rgb=[100, 100, 100],
+            reorder_traces=True,
+            opacity_factor=0.2,
+            opacity_exp=1 / 2
+    ):
+        """
+        Method to add a shaded halfspace hull window to FormulaAlloyPair plot
+
+        :param fig:
+        :param hull_tuple:
+        :param shades:
+        :param rgb:
+        :param reorder_traces:
+        :param e_hull_limit:
+        :param opacity_factor:
+        :param opacity_exp:
+        :return: figure
+        """
+
+        if not fig:
+            fig = go.Figure()
+        if hull_tuple == "auto":
+            x_hull, y_hull = FormulaAlloyPair.get_critical_points_data(fig)
+
+            # for data in fig.data:
+            #     data = data.to_plotly_json()
+            #     if data["name"] == "hull":
+            #         critical_points = data
+            # x_hull, y_hull = critical_points["x"], critical_points["y"]
+
+        for n in range(shades - 1):
+            i = n + 1
+            opac = (1 - (i / shades) ** opacity_exp) * opacity_factor
+            fig.add_trace(go.Scatter(
+                x=list(x_hull) + list(x_hull)[::-1],
+                y=list(y_hull + e_hull_limit * (i - 1) / (shades - 1)) + list(
+                    y_hull + e_hull_limit * (i) / (shades - 1))[
+                                                                         ::-1],
+                fill="tonexty",
+                fillcolor='rgba({}, {}, {}, {})'.format((rgb[0]), (rgb[1]), (rgb[2]), (opac)),
+                line=dict(color='rgba({}, {}, {}, {})'.format((rgb[0]), (rgb[1]), (rgb[2]), (opac)),
+                          width=0, ),
+                showlegend=False,
+                name="hull_shading",
+                mode="lines",
+            ),
+                row=1,
+                col=1
+            )
+
+        if reorder_traces:
+            fig.data = tuple([fig.data[-1]] + list(fig.data[:-1]))
+
+        return fig
+
+    # may not be necessary?
+    @staticmethod
+    def get_critical_points_data(fig):
+        """
+        Function to get the critical points of the halfspace hull for a FormulaAlloyPair figure
+        :param fig:
+        :return:
+        """
+
+        for data in fig.data:
+            data = data.to_plotly_json()
+            if data["name"] == "hull":
+                critical_points = data
+        return critical_points["x"], critical_points["y"]
 
     def __str__(self):
         return f"FormulaAlloyPair {self.pairs[0].alloy_formula}"
+
+
+def _get_colormap_from_keys(
+        color_keys,
+        color_scale="greys",
+        range_of_scale=(0.1, 0.9)
+):
+    """
+    A general function to write a plotly colormap from a set of keys
+
+    :param color_keys:
+    :param color_scale:
+    :param range_of_scale:
+    :return:
+    """
+    n_colors = len(color_keys)
+
+    colors = px.colors.sample_colorscale(
+        color_scale, n_colors,
+        low=range_of_scale[0], high=range_of_scale[1]
+    )
+    color_map = {k: colors[idx] for idx, k in enumerate(color_keys)}
+
+    return color_map

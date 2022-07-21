@@ -17,10 +17,12 @@ with open(os.path.join(SETUP_PTH, "README.rst")) as f:
 setup(
     name="pymatgen-analysis-alloys",
     packages=find_namespace_packages(include=["pymatgen.analysis.*"]),
-    version="0.0.1",
-    install_requires=["pymatgen>=2022.0.3"],
+    version="0.0.2",
+    install_requires=["pymatgen>=2022.0.3", "shapely>=1.8.2"],
     extras_require={},
-    package_data={},
+    package_data={
+        "pymatgen.analysis.alloys": ["*.yaml", "*.json", "*.csv"],
+    },
     author="Rachel Woods-Robinson, Matthew Horton",
     author_email="rwoodsrobinson@lbl.gov",
     maintainer="Rachel Woods-Robinson, Matthew Horton",

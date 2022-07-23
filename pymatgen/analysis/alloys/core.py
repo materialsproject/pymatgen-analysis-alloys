@@ -33,8 +33,6 @@ from scipy.constants import c, h, elementary_charge
 from pymatgen.core.composition import Species, Composition
 from pymatgen.analysis.structure_matcher import ElementComparator
 from pymatgen.core.structure import Structure
-from mp_api import MPRester
-# from pymatgen.ext.matproj import MPRester TODO: this might break something?
 from pymatgen.transformations.standard_transformations import (
     AutoOxiStateDecorationTransformation,
     ConventionalCellTransformation,
@@ -1242,6 +1240,7 @@ class FormulaAlloyPair(MSONable):
 
         # new API
         if not old_API:
+            from mp_api import MPRester
             with MPRester(api_key) as mpr:
                 polymorphs_a = mpr.query(
                     formula=[formula_a],
@@ -1261,6 +1260,7 @@ class FormulaAlloyPair(MSONable):
 
             # old API
         else:
+            from pymatgen.ext.matproj import MPRester
             with MPRester(api_key) as mpr:
                 polymorphs = mpr.query(
                     {"pretty_formula": {"$in": [formula_a, formula_b]}},
@@ -1317,6 +1317,7 @@ class FormulaAlloyPair(MSONable):
         :param h: Plot height.
         :return: Half-space hull plotly figure.
         """
+        from mp_api import MPRester
 
         fields = [
             "x",
@@ -1502,6 +1503,7 @@ class FormulaAlloyPair(MSONable):
 
         :return:
         """
+        from mp_api import MPRester
 
         # one example pair -- note this is a AlloyPair method, should be under different class?
         test_pair = self.pairs[0]

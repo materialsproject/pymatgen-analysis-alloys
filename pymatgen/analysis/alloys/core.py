@@ -1242,15 +1242,10 @@ class FormulaAlloyPair(MSONable):
         if not old_API:
             from mp_api import MPRester
             with MPRester(api_key) as mpr:
-                polymorphs_a = mpr.query(
-                    formula=[formula_a],
+                polymorphs = mpr.summary.search(
+                    formula=[formula_a, formula_b],
                     fields=fields,
                 )
-                polymorphs_b = mpr.query(
-                    formula=[formula_b],
-                    fields=fields,
-                )
-            polymorphs = polymorphs_a + polymorphs_b
             df_polymorphs = pd.DataFrame([{
                 "formula": p.formula_pretty, "task_id": p.material_id, "spacegroup.symbol": p.symmetry.symbol, \
                 "theoretical": p.theoretical, "energy_above_hull": p.energy_above_hull} \

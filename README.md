@@ -1,5 +1,5 @@
-pymatgen-analyis-alloys
-=======================
+pymatgen-analysis-alloys
+========================
 
 `pymatgen-analysis-alloys` is an add-on package for [pymatgen](https://pymatgen.org) intended to contain useful classes 
 for describing alloy systems and analyzing data relevant to these systems. It currently contains the base classes and 

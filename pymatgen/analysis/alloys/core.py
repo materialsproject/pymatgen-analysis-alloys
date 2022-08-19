@@ -1240,7 +1240,7 @@ class FormulaAlloyPair(MSONable):
 
         # new API
         if not old_API:
-            from mp_api import MPRester
+            from mp_api.client import MPRester
             with MPRester(api_key) as mpr:
                 polymorphs = mpr.summary.search(
                     formula=[formula_a, formula_b],
@@ -1312,7 +1312,7 @@ class FormulaAlloyPair(MSONable):
         :param h: Plot height.
         :return: Half-space hull plotly figure.
         """
-        from mp_api import MPRester
+        from mp_api.client import MPRester
 
         fields = [
             "x",
@@ -1498,7 +1498,7 @@ class FormulaAlloyPair(MSONable):
 
         :return:
         """
-        from mp_api import MPRester
+        from mp_api.client import MPRester
 
         # one example pair -- note this is a AlloyPair method, should be under different class?
         test_pair = self.pairs[0]

@@ -10,7 +10,7 @@ import os
 
 SETUP_PTH = os.path.dirname(os.path.abspath(__file__))
 
-with open(os.path.join(SETUP_PTH, "README.rst")) as f:
+with open(os.path.join(SETUP_PTH, "README.md")) as f:
     desc = f.read()
 
 
@@ -28,8 +28,7 @@ setup(
     maintainer="Rachel Woods-Robinson, Matthew Horton",
     url="https://github.com/materialsproject/pymatgen-alloys",
     description="A pymatgen add-on library with classes useful for describing alloy (disordered) systems.",
-    long_description="A pymatgen add-on library with classes useful for describing alloy (disordered) systems.",
-    #long_description=desc,
+    long_description=desc,
     keywords=["pymatgen"],
     classifiers=[
         "Programming Language :: Python :: 3",

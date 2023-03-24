@@ -502,16 +502,20 @@ class AlloyPair(MSONable):
             return False
 
         # checking by spacegroup is useful for DISORDERED structures
-        try:
-            # can sometimes fail due to spglib returning None, unfortunately
-            spacegroup_intl_number = structure.get_space_group_info()[1]
-            if (self.spacegroup_intl_number_a == spacegroup_intl_number) or (self.spacegroup_intl_number_b) == (
-                    spacegroup_intl_number
-            ):
-                # heuristic! may give false positives
-                return True
-        except TypeError:
-            pass
+        if not structure.is_ordered:
+            # unclear if this should only be allowed if disordered, there is also an argument 
+            # that significant local relaxations in an ordered approximation might make 
+            # structure matching routines fail
+            try:
+                # can sometimes fail due to spglib returning None, unfortunately
+                spacegroup_intl_number = structure.get_space_group_info()[1]
+                if (self.spacegroup_intl_number_a == spacegroup_intl_number) or (self.spacegroup_intl_number_b) == (
+                        spacegroup_intl_number
+                ):
+                    # heuristic! may give false positives
+                    return True
+            except TypeError:
+                pass
 
         # create two test structures from input ABX: one of composition AX and one BX
         structure_a, structure_b = structure.copy(), structure.copy()
@@ -542,6 +546,15 @@ class AlloyPair(MSONable):
         :return: Fractional alloy content, x.
         """
         c = composition.element_composition
+
+        def is_compatible(comp):
+            """If False, stochiometry does not allow a simple mixture."""
+            return self.formula_a == comp.replace({self.alloying_element_b: self.alloying_element_a}).reduced_formula
+
+        # guard statement, get_x needs to be expanded in this case to allow additional subscripts
+        if not is_compatible(composition):
+            raise ValueError("Composition not compatible with AlloyPair.")
+        
         if (self.alloying_element_a not in c) or (self.alloying_element_b not in c):
             raise ValueError("Provided composition does not contain required alloying elements.")
         return c[self.alloying_element_a] / (c[self.alloying_element_a] + c[self.alloying_element_b])

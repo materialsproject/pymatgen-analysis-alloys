@@ -616,6 +616,7 @@ class AlloyPair(MSONable):
         """
 
         with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
             return (
                 self.formula_a
                 == composition.element_composition.replace(

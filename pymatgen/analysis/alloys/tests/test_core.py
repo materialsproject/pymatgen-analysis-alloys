@@ -1,10 +1,11 @@
 from pathlib import Path
 from typing import Dict
 
+from pytest import raises
+from monty.serialization import loadfn
 from pymatgen.core import Structure, Composition
 
 from pymatgen.analysis.alloys.core import AlloyPair
-from monty.serialization import loadfn
 
 
 mp_661: Structure = loadfn(Path(__file__).parent / "AlN_mp-661.json")
@@ -153,11 +154,15 @@ def test_get_x():
     )
 
     c1 = Composition("AlGaN2")
-    c2 = Composition("Al2GaN2")
-    c3 = Composition("AlGa0.5N1.5")
-    c4 = Composition({'Al3+': 1, 'Ga3+': 1, 'N3-': 2})
+    c2 = Composition({'Al3+': 1, 'Ga3+': 1, 'N3-': 2})
+    c3 = Composition("Al2GaN3")
+    c4 = Composition("Al2GaN2")  # incompatible, i.e. off-stoichiometric
+    c5 = Composition("AlGa0.5N1.5")   # incompatible, i.e. off-stoichiometric
 
     assert pair.get_x(c1) == 0.5
-    assert pair.get_x(c2) == 2/3
+    assert pair.get_x(c2) == 0.5
     assert pair.get_x(c3) == 2/3
-    assert pair.get_x(c4) == 0.5
+    with raises(ValueError):
+        pair.get_x(c4)
+    with raises(ValueError):
+        pair.get_x(c5)

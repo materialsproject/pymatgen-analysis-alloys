@@ -473,7 +473,12 @@ class AlloyPair(MSONable):
         )
 
     def is_member(
-            self, structure: Structure, ltol: float = LTOL, stol: float = STOL, angle_tol: float = ANGLE_TOL
+            self,
+            structure: Structure,
+            ltol: float = LTOL,
+            stol: float = STOL,
+            angle_tol: float = ANGLE_TOL,
+            spacegroup_check: Literal["off", "disordered_only", "all"] = "all",
     ) -> bool:
         """
         Check if a Structure could be a member of the AlloyPair.
@@ -482,7 +487,8 @@ class AlloyPair(MSONable):
         false positives or negatives.
 
         If space groups match, it is assumed to be a member. If space groups do not match,
-        a StructureMatcher comparison is performed.
+        a StructureMatcher comparison is performed. The space group check can be controlled 
+        for only certain classes of structure via the spacegroup_check argument.
 
         :param structure: Structure to check
         :param ltol: Fractional length tolerance, as defined in
@@ -492,6 +498,7 @@ class AlloyPair(MSONable):
             :py:class:`pymatgen.analysis.structure_matcher.StructureMatcher`.
         :param angle_tol: Angle tolerance in degrees, as defined in
             :py:class:`pymatgen.analysis.structure_matcher.StructureMatcher`.
+        :param spacegroup_check: Whether to allow fuzzy matching via spacegroup only.
         :return: True or False
         """
 
@@ -502,7 +509,7 @@ class AlloyPair(MSONable):
             return False
 
         # checking by spacegroup is useful for DISORDERED structures
-        if not structure.is_ordered:
+        if (spacegroup_check == "all) or (spacegroup_check == "disordered_only" and not structure.is_ordered):
             # unclear if this should only be allowed if disordered, there is also an argument 
             # that significant local relaxations in an ordered approximation might make 
             # structure matching routines fail

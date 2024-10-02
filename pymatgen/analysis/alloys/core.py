@@ -25,7 +25,7 @@ from itertools import groupby, chain
 from monty.json import MSONable
 from plotly.subplots import make_subplots
 from pymatgen.analysis.phase_diagram import PhaseDiagram
-from scipy.spatial.qhull import HalfspaceIntersection
+from scipy.spatial import HalfspaceIntersection
 from shapely.geometry import MultiPoint
 from typing import List, Tuple, Optional, Dict, Literal, Any, Set, Callable, Union
 from scipy.constants import c, h, elementary_charge

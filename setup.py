@@ -4,9 +4,9 @@
 # and distributed under the terms of the Modified BSD License.
 # pymatgen-analysis-alloys is Copyright (c) Rachel Woods-Robinson, Matthew Horton
 
-from setuptools import setup, find_namespace_packages
-
 import os
+
+from setuptools import find_namespace_packages, setup
 
 SETUP_PTH = os.path.dirname(os.path.abspath(__file__))
 
@@ -18,7 +18,7 @@ setup(
     name="pymatgen-analysis-alloys",
     packages=find_namespace_packages(include=["pymatgen.analysis.*"]),
     version="0.0.6",
-    install_requires=["pymatgen>=2022.0.3", "shapely>=1.8.2"],
+    install_requires=["pymatgen>=2023.7.17", "shapely>=1.8.2"],
     extras_require={},
     package_data={
         "pymatgen.analysis.alloys": ["*.yaml", "*.json", "*.csv"],

@@ -1,4 +1,3 @@
 include requirements.txt
-prune */tests
-prune */*/tests
-prune */*/*/tests
+global-exclude */tests/*
+prune */tests/

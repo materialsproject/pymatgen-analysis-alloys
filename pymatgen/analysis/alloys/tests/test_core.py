@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import Dict
 
+import pytest
 from monty.serialization import loadfn
-from pytest import raises
 
 from pymatgen.analysis.alloys.core import AlloyPair
 from pymatgen.core import Composition, Structure
@@ -161,7 +161,7 @@ def test_get_x():
     assert pair.get_x(c1) == 0.5
     assert pair.get_x(c2) == 0.5
     assert pair.get_x(c3) == 2/3
-    with raises(ValueError):
+    with pytest.raises(ValueError):
         pair.get_x(c4)
-    with raises(ValueError):
+    with pytest.raises(ValueError):
         pair.get_x(c5)

@@ -29,6 +29,7 @@ setup(
         "shapely>=1.8.2",
         ],
     extras_require={},
+    setup_requires=["setuptools>=64"],
     package_data={
         "pymatgen.analysis.alloys": ["*.yaml", "*.json", "*.csv"],
     },

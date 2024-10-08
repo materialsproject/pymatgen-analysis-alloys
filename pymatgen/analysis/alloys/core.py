@@ -9,37 +9,35 @@ known to estimate which AlloyPair is stable for a given composition.
 
 # TODO: A `FormulaAlloySystem` is defined consisting of `FormulaAlloyPair` and specifies
 # the full space accessible for a given composition.
+import hashlib
 import warnings
 from dataclasses import dataclass, field
+from itertools import chain, groupby
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Union
 
-import hashlib
 import networkx as nx
 import numpy as np
 import pandas as pd
 import plotly.express as px
-
 import plotly.graph_objects as go
-from monty.serialization import loadfn
-from pathlib import Path
-from itertools import groupby, chain
 from monty.json import MSONable
+from monty.serialization import loadfn
 from plotly.subplots import make_subplots
-from pymatgen.analysis.phase_diagram import PhaseDiagram
+from scipy.constants import c, elementary_charge, h
 from scipy.spatial import HalfspaceIntersection
 from shapely.geometry import MultiPoint
-from typing import List, Tuple, Optional, Dict, Literal, Any, Set, Callable, Union
-from scipy.constants import c, h, elementary_charge
 
-from pymatgen.core.composition import Species, Composition
+from pymatgen.analysis.alloys.rgb import rgb
+from pymatgen.analysis.phase_diagram import PhaseDiagram
 from pymatgen.analysis.structure_matcher import ElementComparator
+from pymatgen.core.composition import Composition, Species
 from pymatgen.core.structure import Structure
 from pymatgen.transformations.standard_transformations import (
     AutoOxiStateDecorationTransformation,
     ConventionalCellTransformation,
 )
 from pymatgen.util.string import unicodeify
-
-from pymatgen.analysis.alloys.rgb import rgb
 
 # structure matching parameters
 LTOL: float = 0.2

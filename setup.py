@@ -4,9 +4,9 @@
 # and distributed under the terms of the Modified BSD License.
 # pymatgen-analysis-alloys is Copyright (c) Rachel Woods-Robinson, Matthew Horton
 
-from setuptools import setup, find_namespace_packages
-
 import os
+
+from setuptools import find_namespace_packages, setup
 
 SETUP_PTH = os.path.dirname(os.path.abspath(__file__))
 

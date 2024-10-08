@@ -1,12 +1,11 @@
 from pathlib import Path
 from typing import Dict
 
-from pytest import raises
 from monty.serialization import loadfn
-from pymatgen.core import Structure, Composition
+from pytest import raises
 
 from pymatgen.analysis.alloys.core import AlloyPair
-
+from pymatgen.core import Composition, Structure
 
 mp_661: Structure = loadfn(Path(__file__).parent / "AlN_mp-661.json")
 mp_661_without_oxi_state = mp_661.copy()

@@ -24,7 +24,7 @@ setup(
         "numpy",
         "pandas",
         "plotly",
-        "pymatgen>=2022.0.3",
+        "pymatgen>=2023.7.17",
         "scipy>=1.8.0",
         "shapely>=1.8.2",
         ],

@@ -466,13 +466,13 @@ class AlloyPair(MSONable):
 
         if (anions_a or cations_a) and (anions_b or cations_b):
 
-            ions_a = [Species.from_string(sp) for sp in anions_a] + [
-                Species.from_string(sp) for sp in cations_a
+            ions_a = [Species.from_str(sp) for sp in anions_a] + [
+                Species.from_str(sp) for sp in cations_a
             ]
             elements_a = [str(sp.element) for sp in ions_a]
 
-            ions_b = [Species.from_string(sp) for sp in anions_b] + [
-                Species.from_string(sp) for sp in cations_b
+            ions_b = [Species.from_str(sp) for sp in anions_b] + [
+                Species.from_str(sp) for sp in cations_b
             ]
             elements_b = [str(sp.element) for sp in ions_b]
 

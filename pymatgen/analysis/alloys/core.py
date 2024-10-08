@@ -5,10 +5,11 @@ entries in an AlloySystem must be commensurate with each other.
 
 A `FormulaAlloyPair` class contains `AlloyPairs` which have formation energies
 known to estimate which AlloyPair is stable for a given composition.
+
+TODO: A `FormulaAlloySystem` is defined consisting of `FormulaAlloyPair` and
+specifies the full space accessible for a given composition.
 """
 
-# TODO: A `FormulaAlloySystem` is defined consisting of `FormulaAlloyPair` and specifies
-# the full space accessible for a given composition.
 import hashlib
 import warnings
 from dataclasses import dataclass, field

@@ -13,20 +13,21 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
-    steps:
-    - uses: actions/checkout@v4
+    env:
+      PMG_MAPI_KEY: ${{ secrets.PMG_MAPI_KEY }}
+      MPLBACKEND: "Agg"
 
+    steps:
+    - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install --quiet -r requirements.txt -r requirements-ci.txt
         pip install -e .
-
     - name: pytest
       run: |
         pytest --cov=pymatgen.analysis.diffusion --durations=30 pymatgen

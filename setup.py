@@ -17,7 +17,7 @@ with open(os.path.join(SETUP_PTH, "README.md")) as readme:
 setup(
     name="pymatgen-analysis-alloys",
     packages=find_namespace_packages(include=["pymatgen.analysis.*"]),
-    version="0.0.6",
+    version="0.0.7",
     install_requires=["pymatgen>=2023.7.17", "shapely>=1.8.2"],
     extras_require={},
     package_data={

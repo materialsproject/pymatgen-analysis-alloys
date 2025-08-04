@@ -26,7 +26,7 @@ _ctbl = (
 _ctbl = zlib.decompress(base64.b64decode(_ctbl))
 
 
-def rgb(nm):
+def rgb(nm) -> tuple[int, int, int]:
     """
     Converts a wavelength between 380 and 780 nm to an RGB color tuple.
     Argument:
@@ -38,4 +38,4 @@ def rgb(nm):
     if nm < 380 or nm > 780:
         raise ValueError("wavelength out of range")
     nm = (nm - 380) * 3
-    return _ctbl[nm : nm + 3]
+    return _ctbl[nm : nm + 3]  # type: ignore[return-value]

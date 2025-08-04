@@ -64,7 +64,7 @@ def ev_to_rgb(ev: float) -> Tuple[int, int, int]:
     :return: A (red, green, blue) tuple in the range 0-255
     """
     nm = ((10**9) * c * h) / (elementary_charge * ev)
-    return tuple(rgb(nm))
+    return tuple(rgb(nm))  # type: ignore[return-value]
 
 
 def get_unfilled_valence_orbitals(ele: str | Element) -> list[tuple[int, str, int]]:
@@ -79,7 +79,7 @@ def get_unfilled_valence_orbitals(ele: str | Element) -> list[tuple[int, str, in
     occupancy = {symb: 2 * (2 * s + 1) for s, symb in enumerate(orbital_symbols)}
 
     occ_shells: defaultdict[int, dict[str, int]] = defaultdict(dict)
-    for config in Element(ele).full_electronic_structure:
+    for config in Element(ele).full_electronic_structure:  # type: ignore[arg-type]
         occ_shells[config[0]][config[1]] = config[2]
 
     subshells = defaultdict(list)
@@ -438,8 +438,8 @@ class AlloyPair(MSONable):
                 all_elements.add(str(el))
         chemsys = "-".join(sorted(all_elements))
 
-        all_species = set(structure_oxi_a.types_of_species) | set(structure_oxi_b.types_of_species)
-        all_species = {str(sp) for sp in all_species if isinstance(sp, Species)}
+        _all_species = set(structure_oxi_a.types_of_species) | set(structure_oxi_b.types_of_species)
+        all_species = {str(sp) for sp in _all_species if isinstance(sp, Species)}
         observer_species = (
             list(all_species - {alloying_species_a, alloying_species_b})
             if (alloying_species_a and alloying_species_b)
@@ -1703,7 +1703,7 @@ class FormulaAlloyPair(MSONable):
                 decomp_records.append(
                     {
                         "x": x,
-                        "entry_id": entry.entry_id,
+                        "entry_id": getattr(entry, "entry_id", None),
                         "formula": entry.name,
                         "fraction": decomp[entry],
                         "critical": False,
@@ -1725,7 +1725,7 @@ class FormulaAlloyPair(MSONable):
                 decomp_records.append(
                     {
                         "x": x,
-                        "entry_id": entry.entry_id,
+                        "entry_id": getattr(entry, "entry_id", None),
                         "formula": entry.name,
                         "fraction": decomp[entry],
                         "critical": True,

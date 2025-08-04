@@ -33,7 +33,7 @@ def test_successful_alloy_pair_construction():
         (mp_661_without_oxi_state, mp_804_without_oxi_state),
         (mp_661, mp_804),
         ("mp-661", "mp-804"),
-        properties=({}, {})
+        properties=({}, {}),
     )
 
     assert pair.pair_formula == "AlN_GaN"
@@ -59,7 +59,7 @@ def test_successful_alloy_pair_construction_without_oxidation_states():
         (mp_661_without_oxi_state, mp_804_without_oxi_state),
         (mp_661_without_oxi_state, mp_804_without_oxi_state),
         ("mp-661", "mp-804"),
-        properties=({}, {})
+        properties=({}, {}),
     )
 
     assert pair.pair_formula == "AlN_GaN"
@@ -80,7 +80,7 @@ def test_successful_alloy_pair_construction_with_mixed_oxidation_states():
         (mp_661_without_oxi_state, mp_804_without_oxi_state),
         (mp_661, mp_804_without_oxi_state),
         ("mp-661", "mp-804"),
-        properties=({}, {})
+        properties=({}, {}),
     )
 
     assert pair.pair_formula == "AlN_GaN"
@@ -101,14 +101,14 @@ def test_membership():
         (mp_661_without_oxi_state, mp_804_without_oxi_state),
         (mp_661, mp_804),
         ("mp-661", "mp-804"),
-        properties=({}, {})
+        properties=({}, {}),
     )
 
     zb_pair = AlloyPair.from_structures(
         (mp_1700_without_oxi_state, mp_830_without_oxi_state),
         (mp_1700, mp_830),
         ("mp-1700", "mp-830"),
-        properties=({}, {})
+        properties=({}, {}),
     )
 
     wz_human_checked_members = {
@@ -150,18 +150,18 @@ def test_get_x():
         (mp_661_without_oxi_state, mp_804_without_oxi_state),
         (mp_661, mp_804),
         ("mp-661", "mp-804"),
-        properties=({}, {})
+        properties=({}, {}),
     )
 
     c1 = Composition("AlGaN2")
-    c2 = Composition({'Al3+': 1, 'Ga3+': 1, 'N3-': 2})
+    c2 = Composition({"Al3+": 1, "Ga3+": 1, "N3-": 2})
     c3 = Composition("Al2GaN3")
     c4 = Composition("Al2GaN2")  # incompatible, i.e. off-stoichiometric
-    c5 = Composition("AlGa0.5N1.5")   # incompatible, i.e. off-stoichiometric
+    c5 = Composition("AlGa0.5N1.5")  # incompatible, i.e. off-stoichiometric
 
     assert pair.get_x(c1) == 0.5
     assert pair.get_x(c2) == 0.5
-    assert pair.get_x(c3) == 2/3
+    assert pair.get_x(c3) == 2 / 3
     with raises(ValueError):
         pair.get_x(c4)
     with raises(ValueError):

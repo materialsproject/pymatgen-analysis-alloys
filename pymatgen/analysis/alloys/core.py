@@ -1223,6 +1223,7 @@ class AlloySystem(MSONable):
         return len(self.pair_ids)
 
     def as_dict(self) -> dict:
+        """Represent the alloy system as a dict."""
         d = super().as_dict()
         # because JSON doesn't have a set type
         # alternative would be to use list, but set more appropriate
@@ -1231,6 +1232,7 @@ class AlloySystem(MSONable):
         return d
 
     def as_dict_mongo(self):
+        """Represent the alloy system as a Mongo-compatible dict."""
         # do not store AlloyPairs?
         # add number of components
         # add search dict

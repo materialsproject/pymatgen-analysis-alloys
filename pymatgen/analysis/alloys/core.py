@@ -10,6 +10,7 @@ known to estimate which AlloyPair is stable for a given composition.
 # TODO: A `FormulaAlloySystem` is defined consisting of `FormulaAlloyPair` and specifies
 # the full space accessible for a given composition.
 import warnings
+from collections import defaultdict
 from dataclasses import dataclass, field
 
 import hashlib
@@ -30,6 +31,7 @@ from shapely.geometry import MultiPoint
 from typing import List, Tuple, Optional, Dict, Literal, Any, Set, Callable, Union
 from scipy.constants import c, h, elementary_charge
 
+from pymatgen.core.periodic_table import Element
 from pymatgen.core.composition import Species, Composition
 from pymatgen.analysis.structure_matcher import ElementComparator
 from pymatgen.core.structure import Structure
@@ -64,6 +66,89 @@ def ev_to_rgb(ev: float) -> Tuple[float, float, float]:
     nm = ((10**9) * c * h) / (elementary_charge * ev)
     return tuple(rgb(nm))
 
+def get_unfilled_valence_orbitals(ele : str | Element) -> list[tuple[int,str,int]]:
+    """Get only the outermost valence electron orbitals of an atom.
+    
+    :param ele: a string or pymatgen Element of the atom
+    :return: a list of tuples, where each tuple represents a valence orbital:
+        ex: for Cr, this returns [(4, "s", 1), (3, "d", 5)]
+    """
+
+    orbital_symbols = ["s","p","d","f","g","h"]
+    occupancy = {
+        symb : 2*(2*s + 1) for s, symb in enumerate(orbital_symbols)
+    }
+
+    occ_shells = defaultdict(dict)
+    for config in Element(ele).full_electronic_structure:
+        occ_shells[config[0]][config[1]] = config[2]
+
+    subshells = defaultdict(list)
+    for n in range(1,10):
+        for ell, orb in enumerate(orbital_symbols[:n]):
+            subshells[n+ell].append((n,orb))
+
+    for combo in list(subshells):
+        if not any(orb[1] == "s" for orb in subshells[combo]):
+            subshells.pop(combo)
+
+    filled_subshells = []
+    shell = []
+    for orbs in subshells.values():
+        for orb in orbs:
+            if orb[1] == "s":
+                if len(shell) > 0:
+                    filled_subshells.append(shell)
+                shell = [orb]
+            else:
+                shell.append(orb)
+
+    unfilled_shells = []
+    for subshell in filled_subshells:
+
+        full_occ = [occupancy[orb[1]] for orb in subshell]
+        occs = [
+            occ_shells.get(orb[0],{}).get(orb[1],0) for orb in subshell
+        ]
+
+        if sum(occs) < sum(full_occ):
+            
+            if all(occ == full_occ[i] for i, occ in enumerate(occs) if occ > 0 ):
+                # Case 1: unfilled outermost shell, but all shells are filled
+                # Return all shells in the outermost unfilled subshell
+                unfilled_shells += [
+                    (*orb,occs[i]) for i, orb in enumerate(subshell)
+                    if 0 < occs[i]
+                ]
+            else:
+                # Case 2: unfilled outermost shell, but at least one
+                # orbital is unfilled.
+                # Return only the unfilled orbitals within that subshell
+                unfilled_shells += [
+                    (*orb, occs[i]) for i, orb in enumerate(subshell)
+                    if 0 < occs[i] < full_occ[i]
+                ]
+        
+            break
+
+    return unfilled_shells
+
+def check_isoelectronicity(ele1 : str | Element, ele2 : str | Element) -> bool:
+    """Check if two atoms are isoelectronic.
+    
+    :param ele1: the first atom
+    :param ele2: the second atom
+    :return bool: True if the atoms are isoelectronic.
+    """
+    configs = [
+        {
+            orb[1]: orb[2]
+            for orb in get_unfilled_valence_orbitals(ele)
+        }
+        for ele in (ele1,ele2)
+    ]
+         
+    return configs[0] == configs[1]
 
 class InvalidAlloy(ValueError):
     """
@@ -154,8 +239,8 @@ class AlloyPair(MSONable):
         alloy_oxidation_state (Optional[int]): If set, will be the common oxidation state for
             alloying elements in both end-points.
         isoelectronic (Optional[bool]): If set, will give whether the alloying elements
-            are expected to be isoelectronic using their oxidation state. This is a
-            simplistic method calculated based on the alloying elements' groups.
+            are expected to be isoelectronic using a simple method based on the number
+            of valence electrons each element has.
         anonymous_formula (str): Anonymous formula for both end-points (must be the
             same for this class which does not consider incommensurate alloys).
         nelements (int): Number of elements in end-point structure.
@@ -497,14 +582,7 @@ class AlloyPair(MSONable):
                 alloy_oxidation_state = oxi_state_a
 
             if alloying_species_a and alloying_species_b:
-                # this is a very simplistic method based on periodic table group to see
-                # if alloying elements are isoelectronic, should be check
-                if (ions_a[index_a].element.group - oxi_state_a) - (
-                    ions_b[index_b].element.group - oxi_state_b
-                ) == 0:
-                    isoelectronic = True
-                else:
-                    isoelectronic = False
+                isoelectronic = check_isoelectronicity(ions_a[index_a].element, ions_b[index_b].element)
 
         return (
             alloy_oxidation_state,

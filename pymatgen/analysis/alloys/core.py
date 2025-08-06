@@ -545,7 +545,10 @@ class AlloyPair(MSONable):
             if oxi_state_a == oxi_state_b:
                 alloy_oxidation_state = oxi_state_a
 
-            isoelectronic = check_isoelectronicity(ions_a[index_a].element, ions_b[index_b].element)
+            try:
+                isoelectronic = check_isoelectronicity(ions_a[index_a].element, ions_b[index_b].element)
+            except Exception:
+                isoelectronic = None
 
         return (
             alloy_oxidation_state,

@@ -2,7 +2,8 @@
 
 # Original pymatgen add-on template Copyright (c) Materials Virtual Lab
 # and distributed under the terms of the Modified BSD License.
-# pymatgen-analysis-alloys is Copyright (c) Rachel Woods-Robinson, Matthew Horton
+
+# See LICENSE for current copyright information
 
 import os
 

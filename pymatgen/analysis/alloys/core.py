@@ -1047,7 +1047,7 @@ class AlloySystem(MSONable):
 
         hull = MultiPoint(points).convex_hull
 
-        return list(hull.boundary.coords), list(hull.centroid.coords)[0], hull.area
+        return list(hull.coords), list(hull.centroid.coords)[0], hull.area
 
     def get_hull_trace_and_area(
         self,

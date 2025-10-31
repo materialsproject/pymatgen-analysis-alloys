@@ -5,6 +5,7 @@
 # You can find this script at https://github.com/rsmith-nl/wavelength_to_rgb
 # The algorithm is based on Dan Bruton's work in
 # http://www.physics.sfasu.edu/astro/color/spectra.html
+from __future__ import annotations
 
 import base64
 import zlib
@@ -29,10 +30,10 @@ _ctbl = zlib.decompress(base64.b64decode(_ctbl))
 
 
 def rgb(nm) -> tuple[int, int, int]:
-    """
-    Converts a wavelength between 380 and 780 nm to an RGB color tuple.
+    """Converts a wavelength between 380 and 780 nm to an RGB color tuple.
     Argument:
         nm: Wavelength in nanometers. It is rounded to the nearest integer.
+
     Returns:
         a 3-tuple (red, green, blue) of integers in the range 0-255.
     """

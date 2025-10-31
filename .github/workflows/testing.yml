@@ -26,7 +26,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install --quiet -r requirements.txt -r requirements-ci.txt
+        pip install --quiet -r requirements/requirements-ubuntu-latest_py${{ matrix.python-version }}_extras.txt
         pip install -e .
     - name: pytest
       run: |

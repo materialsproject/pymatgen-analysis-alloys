@@ -1,5 +1,4 @@
-"""
-This defines an `AlloySystem` class which is itself made up of `AlloyPairs`, for
+"""This defines an `AlloySystem` class which is itself made up of `AlloyPairs`, for
 example the system Al-Ga-In-N contains pairs Al-Ga-N, Al-In-N, Ga-In-N. All
 entries in an AlloySystem must be commensurate with each other.
 
@@ -9,39 +8,40 @@ known to estimate which AlloyPair is stable for a given composition.
 
 # TODO: A `FormulaAlloySystem` is defined consisting of `FormulaAlloyPair` and specifies
 # the full space accessible for a given composition.
-import warnings
-from collections import defaultdict
-from dataclasses import dataclass, field
+from __future__ import annotations
 
 import hashlib
+import warnings
+from collections import defaultdict
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from itertools import chain, groupby
+from pathlib import Path
+from typing import Any, Literal
+
 import networkx as nx
 import numpy as np
 import pandas as pd
 import plotly.express as px
-
 import plotly.graph_objects as go
-from monty.serialization import loadfn
-from pathlib import Path
-from itertools import groupby, chain
 from monty.json import MSONable
+from monty.serialization import loadfn
 from plotly.subplots import make_subplots
-from pymatgen.analysis.phase_diagram import PhaseDiagram
+from scipy.constants import c, elementary_charge, h
 from scipy.spatial import HalfspaceIntersection
 from shapely.geometry import MultiPoint
-from typing import List, Tuple, Optional, Dict, Literal, Any, Set, Callable, Union
-from scipy.constants import c, h, elementary_charge
 
-from pymatgen.core.periodic_table import Element
-from pymatgen.core.composition import Species, Composition
+from pymatgen.analysis.alloys.rgb import rgb
+from pymatgen.analysis.phase_diagram import PhaseDiagram
 from pymatgen.analysis.structure_matcher import ElementComparator
+from pymatgen.core.composition import Composition, Species
+from pymatgen.core.periodic_table import Element
 from pymatgen.core.structure import Structure
 from pymatgen.transformations.standard_transformations import (
     AutoOxiStateDecorationTransformation,
     ConventionalCellTransformation,
 )
 from pymatgen.util.string import unicodeify
-
-from pymatgen.analysis.alloys.rgb import rgb
 
 # structure matching parameters
 LTOL: float = 0.2
@@ -52,9 +52,8 @@ ANGLE_TOL: float = 5
 KNOWN_ANON_FORMULAS = loadfn(Path(__file__).parent / "anon_formulas.json")
 
 
-def ev_to_rgb(ev: float) -> Tuple[int, int, int]:
-    """
-    Function to convert energy (eV) into a colour for illustrative
+def ev_to_rgb(ev: float) -> tuple[int, int, int]:
+    """Function to convert energy (eV) into a colour for illustrative
     purposes. Beware using this for rigorous applications since
     digital representations of colour are tricky!
 
@@ -74,7 +73,6 @@ def get_unfilled_valence_orbitals(ele: str | Element) -> list[tuple[int, str, in
     :return: a list of tuples, where each tuple represents a valence orbital:
         ex: for Cr, this returns [(4, "s", 1), (3, "d", 5)]
     """
-
     orbital_symbols = ["s", "p", "d", "f", "g", "h"]
     occupancy = {symb: 2 * (2 * s + 1) for s, symb in enumerate(orbital_symbols)}
 
@@ -113,7 +111,7 @@ def get_unfilled_valence_orbitals(ele: str | Element) -> list[tuple[int, str, in
             if all(occ == full_occ[i] for i, occ in enumerate(occs) if occ > 0):
                 # Case 1: unfilled outermost shell, but all shells are filled
                 # Return all shells in the outermost unfilled subshell
-                unfilled_shells += [(*orb, occs[i]) for i, orb in enumerate(subshell) if 0 < occs[i]]
+                unfilled_shells += [(*orb, occs[i]) for i, orb in enumerate(subshell) if occs[i] > 0]
             else:
                 # Case 2: unfilled outermost shell, but at least one
                 # orbital is unfilled.
@@ -138,8 +136,7 @@ def check_isoelectronicity(ele1: str | Element, ele2: str | Element) -> bool:
 
 
 class InvalidAlloy(ValueError):
-    """
-    Exception raised for any invalid alloy due to the alloy itself
+    """Exception raised for any invalid alloy due to the alloy itself
     being physically invalid. Exception is not raised because inputs
     are entered incorrectly.
     """
@@ -162,8 +159,7 @@ SupportedProperties = Literal[
 
 @dataclass
 class AlloyMember(MSONable):
-    """
-    Light-weight class for specifying information about a member of an
+    """Light-weight class for specifying information about a member of an
     AlloyPair or AlloySystem.
     """
 
@@ -176,8 +172,7 @@ class AlloyMember(MSONable):
 
 @dataclass
 class AlloyPair(MSONable):
-    """
-    Data class for creating an alloy pair with commensurate pymatgen
+    """Data class for creating an alloy pair with commensurate pymatgen
     Structure end-points and one changing atomic variable, where A and
     B are end-point materials.
 
@@ -244,43 +239,38 @@ class AlloyPair(MSONable):
     chemsys: str
     alloying_element_a: str
     alloying_element_b: str
-    alloying_species_a: Optional[str]
-    alloying_species_b: Optional[str]
-    observer_elements: List[str]
-    observer_species: Optional[List[str]]
-    anions_a: List[str]
-    anions_b: List[str]
-    cations_a: List[str]
-    cations_b: List[str]
-    lattice_parameters_a: List[float] = field(repr=False)
-    lattice_parameters_b: List[float] = field(repr=False)
+    alloying_species_a: str | None
+    alloying_species_b: str | None
+    observer_elements: list[str]
+    observer_species: list[str] | None
+    anions_a: list[str]
+    anions_b: list[str]
+    cations_a: list[str]
+    cations_b: list[str]
+    lattice_parameters_a: list[float] = field(repr=False)
+    lattice_parameters_b: list[float] = field(repr=False)
     volume_cube_root_a: float
     volume_cube_root_b: float
-    properties_a: Dict[SupportedProperties, Any] = field(repr=False)
-    properties_b: Dict[SupportedProperties, Any] = field(repr=False)
+    properties_a: dict[SupportedProperties, Any] = field(repr=False)
+    properties_b: dict[SupportedProperties, Any] = field(repr=False)
     spacegroup_intl_number_a: int
     spacegroup_intl_number_b: int
     pair_id: str = field(repr=False)
     pair_formula: str = field(repr=False)
-    alloy_oxidation_state: Optional[float] = field(repr=False)
-    isoelectronic: Optional[bool]
+    alloy_oxidation_state: float | None = field(repr=False)
+    isoelectronic: bool | None
     anonymous_formula: str = field(repr=False)
     nelements: int = field(repr=False)
-    members: List[AlloyMember] = field(default_factory=list, repr=False)
+    members: list[AlloyMember] = field(default_factory=list, repr=False)
 
     def __post_init__(self):
-        """
-        Perform check that formulas are sorted correctly for our alloy convention.
-        """
-
+        """Perform check that formulas are sorted correctly for our alloy convention."""
         if self.formula_a > self.formula_b:
             raise ValueError("By convention, formula_a and formula_b must be sorted by alphabetical order.")
 
     @property
     def alloy_formula(self) -> str:
-        """
-        :return: Formatted alloy formula (e.g. AₓB₁₋ₓC).
-        """
+        """:return: Formatted alloy formula (e.g. AₓB₁₋ₓC)."""
         return unicodeify(self.formula_a).replace(
             self.alloying_element_a,
             f"({self.alloying_element_b}ₓ{self.alloying_element_a}₁₋ₓ)",
@@ -288,8 +278,7 @@ class AlloyPair(MSONable):
 
     @staticmethod
     def get_alloy_formula_from_formulas(formula_a: str, alloying_element_a: str, alloying_element_b: str) -> str:
-        """
-        Method to get alloy formula (e.g. AₓB₁₋ₓC) as a function of formulas of two alloying compounds.
+        """Method to get alloy formula (e.g. AₓB₁₋ₓC) as a function of formulas of two alloying compounds.
 
         :param formula_a: Reduced chemical formula for end-point material A.
         :param alloying_element_a: Element to be alloyed in end-point material A.
@@ -305,9 +294,8 @@ class AlloyPair(MSONable):
         return f"AlloyPair {self.alloy_formula}"
 
     @staticmethod
-    def _get_anions_and_cations(structure: Structure, attempt_to_guess: bool = False) -> Tuple[List[str], List[str]]:
-        """
-        Method to get anions and cations from a structure as strings with oxidation
+    def _get_anions_and_cations(structure: Structure, attempt_to_guess: bool = False) -> tuple[list[str], list[str]]:
+        """Method to get anions and cations from a structure as strings with oxidation
         state included.
 
         :param structure: Structure, ideally already oxidation-state decorated.
@@ -315,7 +303,6 @@ class AlloyPair(MSONable):
         already specified.
         :return: Anions and cations with oxidation state in input structure.
         """
-
         if attempt_to_guess:
 
             structure = structure.copy()
@@ -351,16 +338,15 @@ class AlloyPair(MSONable):
     @classmethod
     def from_structures(
         cls,
-        structures: Tuple[Structure, Structure],
-        structures_with_oxidation_states: Tuple[Structure, Structure],
-        ids: Tuple[str, str],
-        properties: Optional[Tuple[Dict[SupportedProperties, Any], Dict[SupportedProperties, Any]]] = None,
+        structures: tuple[Structure, Structure],
+        structures_with_oxidation_states: tuple[Structure, Structure],
+        ids: tuple[str, str],
+        properties: tuple[dict[SupportedProperties, Any], dict[SupportedProperties, Any]] | None = None,
         ltol: float = LTOL,
         stol: float = STOL,
         angle_tol: float = ANGLE_TOL,
-    ) -> "AlloyPair":
-        """
-        Function to construct AlloyPair class.
+    ) -> AlloyPair:
+        """Function to construct AlloyPair class.
 
         :param structures: Pair of pymatgen Structure objects.
         :param structures_with_oxidation_states: Pair of pymatgen Structure objects decorated
@@ -391,7 +377,9 @@ class AlloyPair(MSONable):
 
         formulas_and_structures = [
             (s.composition.reduced_formula, id_, s, s_oxi, property)
-            for id_, s, s_oxi, property in zip(ids, structures, structures_with_oxidation_states, properties)
+            for id_, s, s_oxi, property in zip(
+                ids, structures, structures_with_oxidation_states, properties, strict=False
+            )
         ]
 
         # ensure A is always the same regardless of order of input ids
@@ -486,22 +474,21 @@ class AlloyPair(MSONable):
 
     @staticmethod
     def _get_oxi_state_info(
-        anions_a: List[str],
-        cations_a: List[str],
-        anions_b: List[str],
-        cations_b: List[str],
+        anions_a: list[str],
+        cations_a: list[str],
+        anions_b: list[str],
+        cations_b: list[str],
         alloying_element_a: str,
         alloying_element_b: str,
-    ) -> Tuple[
-        Optional[float],
-        Optional[str],
-        Optional[str],
-        Optional[float],
-        Optional[float],
-        Optional[bool],
+    ) -> tuple[
+        float | None,
+        str | None,
+        str | None,
+        float | None,
+        float | None,
+        bool | None,
     ]:
-        """
-        Get information about what oxidation states are present in the alloy, such
+        """Get information about what oxidation states are present in the alloy, such
         as if the alloy is isoelectronic or not.
 
         :param anions_a: Anions with oxidation state in end-point material A.
@@ -512,7 +499,6 @@ class AlloyPair(MSONable):
         :param alloying_element_b: Element to be alloyed in end-point material B.
         :return: Information about what oxidation states are present in the alloy.
         """
-
         # determine the oxidation state of the alloying element if detected and
         # whether these oxidation states are the same
         alloy_oxidation_state = None
@@ -567,8 +553,7 @@ class AlloyPair(MSONable):
         angle_tol: float = ANGLE_TOL,
         spacegroup_check: Literal["off", "disordered_only", "all"] = "all",
     ) -> bool:
-        """
-        Check if a Structure could be a member of the AlloyPair.
+        """Check if a Structure could be a member of the AlloyPair.
 
         This method is necessarily a heuristic and can give
         false positives or negatives.
@@ -588,7 +573,6 @@ class AlloyPair(MSONable):
         :param spacegroup_check: Whether to allow fuzzy matching via spacegroup only.
         :return: True or False
         """
-
         # TODO: allow competing_pairs kwarg which may change the behavior of this method depending on if
         # it is known that other alloy pairs exist with this composition
 
@@ -643,8 +627,7 @@ class AlloyPair(MSONable):
         return False
 
     def is_compatible(self, composition: Composition) -> bool:
-        """
-        Check if a Composition is compatible with a given AlloyPair.
+        """Check if a Composition is compatible with a given AlloyPair.
 
         Here, compatibility is defined as a composition matching
         the same stochiometry as the alloy. An "incompatible" composition
@@ -656,7 +639,6 @@ class AlloyPair(MSONable):
         :param composition: Input composition of a material.
         :return: True or False
         """
-
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             return (
@@ -667,8 +649,7 @@ class AlloyPair(MSONable):
             )
 
     def get_x(self, composition: Composition) -> float:
-        """
-        Calculate the position of a composition along
+        """Calculate the position of a composition along
         an input line.
 
         :param composition: Input composition of a material.
@@ -684,9 +665,8 @@ class AlloyPair(MSONable):
             raise ValueError("Provided composition does not contain required alloying elements.")
         return c[self.alloying_element_a] / (c[self.alloying_element_a] + c[self.alloying_element_b])
 
-    def get_property_with_vegards_law(self, x: float, prop: str = "band_gap") -> Optional[float]:
-        """
-        Apply Vegard's law to obtain a linearly interpolated property value.
+    def get_property_with_vegards_law(self, x: float, prop: str = "band_gap") -> float | None:
+        """Apply Vegard's law to obtain a linearly interpolated property value.
 
         :param x: Fractional alloy content, x.
         :param prop: Property of interest (must be defined for both end-point material A and
@@ -706,9 +686,8 @@ class AlloyPair(MSONable):
         ltol: float = LTOL,
         stol: float = STOL,
         angle_tol: float = ANGLE_TOL,
-    ) -> Tuple[str, str]:
-        """
-        Run a series of checks to ensure alloys structures are commensurate to the first order, and
+    ) -> tuple[str, str]:
+        """Run a series of checks to ensure alloys structures are commensurate to the first order, and
         that only one element differs between structures.
 
         :param structure_a: Pymatgen Structure for end-point material A.
@@ -722,7 +701,6 @@ class AlloyPair(MSONable):
             :py:class:`pymatgen.analysis.structure_matcher.StructureMatcher`.
         :return: Element to be alloyed in end-point material A and B, respectively.
         """
-
         # check equivalent anonymous formula
         if structure_a.composition.anonymized_formula != structure_b.composition.anonymized_formula:
             raise InvalidAlloy("Alloys are not commensurate")
@@ -754,15 +732,13 @@ class AlloyPair(MSONable):
 
         return alloying_element_a, alloying_element_b
 
-    def as_records(self, fields: Optional[List[str]] = None) -> List[Dict]:
-        """
-        Convert to a record to remove _a, _b subscripts for easier plotting. Can use
+    def as_records(self, fields: list[str] | None = None) -> list[dict]:
+        """Convert to a record to remove _a, _b subscripts for easier plotting. Can use
         to create a pandas DataFrame.
 
         :param fields: Subset of attributes to return (default: None).
         :return: List of dictionaries of record information with _a and _b subscripts.
         """
-
         record_a = {"is": "a", "x": 0}
         record_b = {"is": "b", "x": 1}
 
@@ -790,15 +766,13 @@ class AlloyPair(MSONable):
         return [record_a, record_b]
 
     def search_dict(self) -> dict:
-        """
-        Additional fields from which to build search indices for MongoDB.
+        """Additional fields from which to build search indices for MongoDB.
         For example, it's useful to have a list of both formulas A and B
         present during a search.
 
         :return: A dictionary of additional fields, e.g. including
         {"formula": [self.formula_a, self.formula_b]} etc.
         """
-
         search: dict[str, Any] = {}
 
         # TODO: this is silly, note to self to make this less "clever"
@@ -810,13 +784,11 @@ class AlloyPair(MSONable):
         # quick way to get all attributes for _a and _b
         # only works because we use this naming convention
         for attr in self.__dir__():
-            if not attr.startswith("_"):
-                if attr.endswith("_a") or attr.endswith("_b"):
-                    sample_attr = getattr(self, attr)
-                    if isinstance(sample_attr, float) or isinstance(sample_attr, int):
-                        numerical_attrs.add(attr[:-2])
-                    elif isinstance(sample_attr, str):
-                        other_attrs.add(attr[:-2])
+            if not attr.startswith("_") and (attr.endswith("_a") or attr.endswith("_b")):
+                if isinstance(sample_attr := getattr(self, attr), float | int):
+                    numerical_attrs.add(attr[:-2])
+                elif isinstance(sample_attr, str):
+                    other_attrs.add(attr[:-2])
 
         for attr in numerical_attrs:
             attr_range = [getattr(self, f"{attr}_a"), getattr(self, f"{attr}_b")]
@@ -835,12 +807,12 @@ class AlloyPair(MSONable):
         numerical_properties = set()
         other_properties = set()
         for prop, value_a in self.properties_a.items():
-            if isinstance(value_a, float) or isinstance(value_a, int):
+            if isinstance(value_a, float | int):
                 numerical_properties.add(prop)
             elif isinstance(value_a, str):
                 other_properties.add(prop)
         for prop, value_b in self.properties_b.items():
-            if isinstance(value_b, float) or isinstance(value_b, int):
+            if isinstance(value_b, float | int):
                 numerical_properties.add(prop)
             elif isinstance(value_b, str):
                 other_properties.add(prop)
@@ -864,8 +836,7 @@ class AlloyPair(MSONable):
 
 @dataclass
 class AlloySystem(MSONable):
-    """
-    An alloy system defined by a group of alloy pairs (defined by AlloyPair).
+    """An alloy system defined by a group of alloy pairs (defined by AlloyPair).
 
     Attributes:
         ids (Set[str]): A flat list of all identifiers in the
@@ -891,16 +862,16 @@ class AlloySystem(MSONable):
             alloy pair.
     """
 
-    ids: Set[str]
-    alloy_pairs: List[AlloyPair] = field(repr=False)
+    ids: set[str]
+    alloy_pairs: list[AlloyPair] = field(repr=False)
     alloy_id: str = ""
     n_pairs: int = 0
     chemsys: str = ""
     chemsys_size: int = 0
-    pair_ids: Set[str] = field(default_factory=set)
+    pair_ids: set[str] = field(default_factory=set)
     has_members: bool = False
-    members: List[AlloyMember] = field(default_factory=list, repr=False)
-    additional_members: List[AlloyMember] = field(default_factory=list, repr=False)
+    members: list[AlloyMember] = field(default_factory=list, repr=False)
+    additional_members: list[AlloyMember] = field(default_factory=list, repr=False)
 
     # TODO: sets of alloying_elements etc?
     # TODO: property ranges for searching?
@@ -931,9 +902,8 @@ class AlloySystem(MSONable):
         self.has_members = bool(self.members)
 
     @staticmethod
-    def systems_from_pairs(alloy_pairs: List[AlloyPair]) -> List["AlloySystem"]:
-        """
-        Function to construct AlloySystem class from a list of alloy pairs.
+    def systems_from_pairs(alloy_pairs: list[AlloyPair]) -> list[AlloySystem]:
+        """Function to construct AlloySystem class from a list of alloy pairs.
 
         :param alloy_pairs: A list of the alloy pairs
             belonging to this system.
@@ -956,8 +926,7 @@ class AlloySystem(MSONable):
         return systems
 
     def get_property(self, id_: str, prop: SupportedProperties) -> Any:
-        """
-        Get specified property of an alloy end-point in an alloy system.
+        """Get specified property of an alloy end-point in an alloy system.
 
         :param id_: Unique identifier, e.g. Materials Project material_id.
         :param prop: Specified materials property e.g. "e_above_hull",
@@ -981,10 +950,9 @@ class AlloySystem(MSONable):
                     return getattr(pair, f"{prop}")
 
     def systems_from_filter(
-        self, pair_filter: Callable[[AlloyPair], bool], origin: Optional[str] = None
-    ) -> Union[List["AlloySystem"], "AlloySystem"]:
-        """
-        Filter the AlloySystem by a provided constraint, e.g. to remove AlloyPair
+        self, pair_filter: Callable[[AlloyPair], bool], origin: str | None = None
+    ) -> list[AlloySystem] | AlloySystem:
+        """Filter the AlloySystem by a provided constraint, e.g. to remove AlloyPair
         entries that are not isoelectronic with each other. This returns a list of
         AlloySystem since, after the filter is applied, the original AlloySystem
         might be broken into several smaller AlloySystem.
@@ -995,7 +963,6 @@ class AlloySystem(MSONable):
         :return: List of AlloySystem if an origin is not provided, or a single AlloySystem
         if the origin is provided
         """
-
         pairs = [pair for pair in self.alloy_pairs if pair_filter(pair)]
 
         if not origin:
@@ -1032,9 +999,8 @@ class AlloySystem(MSONable):
         self,
         x_prop: SupportedProperties = "volume_cube_root",
         y_prop: SupportedProperties = "band_gap",
-    ) -> Tuple[List | None, List | None, float | None]:
-        """
-        Get convex hull, centroid, and area from specified material properties.
+    ) -> tuple[list | None, list | None, float | None]:
+        """Get convex hull, centroid, and area from specified material properties.
 
         :param x_prop: Specified materials property (default: "volume_cube_root").
         :param y_prop: Another specified materials property (default: "band_gap").
@@ -1053,12 +1019,11 @@ class AlloySystem(MSONable):
         self,
         x_prop: SupportedProperties = "volume_cube_root",
         y_prop: SupportedProperties = "band_gap",
-        color: Tuple[int, int, int] = (0, 0, 0),
+        color: tuple[int, int, int] = (0, 0, 0),
         opacity: float = 0.2,
         colour_by_centroid: bool = False,
-    ) -> Tuple[go.Trace | None, float | None]:
-        """
-        Get a single convex hull trace in a plotly format, and the
+    ) -> tuple[go.Trace | None, float | None]:
+        """Get a single convex hull trace in a plotly format, and the
         area of the convex hull.
 
         :param x_prop: Specified materials property (default: "volume_cube_root").
@@ -1068,7 +1033,6 @@ class AlloySystem(MSONable):
         :param colour_by_centroid: Whether to color according to centroid value.
         :return: Convex hull plotly figure and the area of the hull.
         """
-
         hull, centroid, area = self.get_convex_hull_and_centroid(x_prop, y_prop)
 
         if not hull:
@@ -1097,14 +1061,13 @@ class AlloySystem(MSONable):
         x_prop: SupportedProperties = "volume_cube_root",
         y_prop: SupportedProperties = "band_gap",
         symbol: str = "theoretical",
-        column_mapping: Dict | None = None,
-        plotly_pxline_kwargs: Dict | None = None,
-        plotly_pxscatter_kwargs: Dict | None = None,
+        column_mapping: dict | None = None,
+        plotly_pxline_kwargs: dict | None = None,
+        plotly_pxscatter_kwargs: dict | None = None,
         plot_members: bool = True,
-        member_plotly_pxscatter_kwargs: Dict | None = None,
+        member_plotly_pxscatter_kwargs: dict | None = None,
     ) -> go.Figure:
-        """
-        Get plot of alloys system space for two specified material properties.
+        """Get plot of alloys system space for two specified material properties.
 
         :param x_prop: Specified materials property (default: "volume_cube_root").
         :param y_prop: Another specified materials property (default: "band_gap").
@@ -1116,7 +1079,6 @@ class AlloySystem(MSONable):
         :param member_plotly_pxscatter_kwargs: Plotly line graph keyward arguments for members.
         :return: Plot of alloy system (AlloySystem) phase space.
         """
-
         data = []
         member_data = []
         column_mapping = column_mapping or {
@@ -1211,7 +1173,7 @@ class AlloySystem(MSONable):
 
         if y_prop == "band_gap":
             for ev in np.arange(1.6, 3.1, 0.05):
-                fillcolor = "rgb({},{},{})".format(*ev_to_rgb((ev + ev + 0.1) / 2))
+                fillcolor = "rgb({},{},{})".format(*ev_to_rgb((ev + ev + 0.1) / 2))  # type: ignore[arg-type]
                 fig.add_hrect(
                     y0=ev,
                     y1=ev + 0.05,
@@ -1248,8 +1210,7 @@ class AlloySystem(MSONable):
 
 @dataclass
 class AlloySegment(MSONable):
-    """
-    A segment within an alloy, consisting of a segment start composition,
+    """A segment within an alloy, consisting of a segment start composition,
     segment end composition, and the corresponding pair of identifiers.
 
     Attributes:
@@ -1268,8 +1229,7 @@ class AlloySegment(MSONable):
 
 @dataclass
 class FormulaAlloyPair(MSONable):
-    """
-    Data class for creating a formula alloy pair which defines a set of all alloy pairs
+    """Data class for creating a formula alloy pair which defines a set of all alloy pairs
     (of class AlloyPair) between two end-point materials A and B of the same
     formula but of different polymorphs. This class is used to find which polymorphs
     might be stable at a given alloy content x.
@@ -1285,13 +1245,12 @@ class FormulaAlloyPair(MSONable):
 
     """
 
-    segments: List[AlloySegment]
-    pairs: List[AlloyPair]
+    segments: list[AlloySegment]
+    pairs: list[AlloyPair]
 
     @classmethod
-    def from_pairs(cls, pairs: List[AlloyPair]) -> List["FormulaAlloyPair"]:
-        """
-        Gets list of FormulaAlloyPair objects for a set of AlloyPair objects
+    def from_pairs(cls, pairs: list[AlloyPair]) -> list[FormulaAlloyPair]:
+        """Gets list of FormulaAlloyPair objects for a set of AlloyPair objects.
 
         :param pairs: List of alloy pairs that comprise a specified
             pair of formulas.
@@ -1300,13 +1259,12 @@ class FormulaAlloyPair(MSONable):
             segment start composition, segment end composition, and the
             corresponding alloy pair identifiers.
         """
-
         pairs = sorted(pairs, key=lambda pair: pair.pair_formula)
         alloy_pair_groups = groupby(pairs, key=lambda pair: pair.pair_formula)
 
         formula_alloy_pairs = []
 
-        for pair_formula, alloy_pair_group in alloy_pair_groups:
+        for _pair_formula, alloy_pair_group in alloy_pair_groups:
             pairs = list(alloy_pair_group)
 
             alloy_pair_df = pd.DataFrame(chain.from_iterable(pair.as_records() for pair in pairs))
@@ -1367,7 +1325,7 @@ class FormulaAlloyPair(MSONable):
 
         # find hull phases
         intersection_to_pairs = {}
-        for idx, (x, y) in enumerate(hs.intersections):
+        for idx, (x, _y) in enumerate(hs.intersections):
             if not np.isnan(x):
                 vertex_1, vertex_2 = hs.dual_facets[idx]
                 pairs = []
@@ -1460,7 +1418,7 @@ class FormulaAlloyPair(MSONable):
         h: float = 600,
         color: str = "pair_id",
         color_scale: str = "default",
-        color_map: Dict | None = None,
+        color_map: dict | None = None,
         n_colors: int = 9,
         y_limit: float | None = None,
         e_above_hull_type: Literal["interpolated", "mp"] = "interpolated",
@@ -1468,11 +1426,10 @@ class FormulaAlloyPair(MSONable):
         api_key: str | None = None,
         old_API: bool = False,  # TODO: should remove old API stuff before commit
         plot_critical_lines: bool = False,
-        fap_plot_domain: Tuple[float, float] = (0.22, 1),
-        decomp_plot_domain: Tuple[float, float] = (0, 0.18),
+        fap_plot_domain: tuple[float, float] = (0.22, 1),
+        decomp_plot_domain: tuple[float, float] = (0, 0.18),
     ) -> go.Figure:
-        """
-        Get a half-space hull plot for a specified formula alloy pair.
+        """Get a half-space hull plot for a specified formula alloy pair.
 
         :param hull_shading_opacity_factor:
         :param e_above_hull_type:
@@ -1512,20 +1469,16 @@ class FormulaAlloyPair(MSONable):
 
         # make a color map
         if not color_map:
-            if color_scale == "default":
-                colors = px.colors.DEFAULT_PLOTLY_COLORS
-            else:
-                n_colors = n_colors
-                range_of_scale = (0, 1)
-                colors = px.colors.sample_colorscale(
-                    color_scale, n_colors, low=range_of_scale[0], high=range_of_scale[1]
-                )
+            colors = (
+                px.colors.DEFAULT_PLOTLY_COLORS
+                if color_scale == "default"
+                else px.colors.sample_colorscale(color_scale, n_colors, low=0, high=1)
+            )
             color_keys = df[color].unique()
             color_map = {k: colors[idx] for idx, k in enumerate(color_keys)}
             if len(color_keys) > len(colors):
                 raise ValueError(
-                    "The number of alloy pairs exceeds \
-                the number of colors. Please supply your own color map!"
+                    "The number of alloy pairs exceeds " "the number of colors. Please supply your own color map!"
                 )
 
         px_fig = px.line(
@@ -1594,7 +1547,7 @@ class FormulaAlloyPair(MSONable):
                     }
 
                 for pair in self.pairs:
-                    for i, member in enumerate(pair.members):
+                    for _i, member in enumerate(pair.members):
                         if member.db == "mp":
                             member_records.append(
                                 {
@@ -1676,9 +1629,8 @@ class FormulaAlloyPair(MSONable):
     def _get_decomp_df(
         self,
         api_key: str | None = None,
-    ) -> Tuple[pd.DataFrame, List]:
-        """
-        Creates a dataframe of thermodynamic decomposition products for a given FormulaAlloyPair
+    ) -> tuple[pd.DataFrame, list]:
+        """Create a dataframe of thermodynamic decomposition products for a given FormulaAlloyPair
         for plotting purposes. Data comes from Materials Project.
 
         :return:
@@ -1717,11 +1669,11 @@ class FormulaAlloyPair(MSONable):
         # critical_x = []
         for comp in phase_diagram.get_critical_compositions(Composition(formulas[0]), Composition(formulas[1])):
             if comp == Composition(formulas[0]):
-                x = 0
+                x = 0.0
             elif comp == Composition(formulas[1]):
-                x = 1
+                x = 1.0
             else:
-                test_pair.get_x(comp)
+                x = test_pair.get_x(comp)
             decomp = phase_diagram.get_decomposition(comp)
             all_decomp_products |= {p.composition.reduced_formula for p in decomp}
             records.append(decomp)
@@ -1751,8 +1703,7 @@ class FormulaAlloyPair(MSONable):
         w=650,
         row_decomp=2,
     ) -> go.Scatter:
-        """
-        Add decomposition information to a FormulaAlloyPair plot
+        """Add decomposition information to a FormulaAlloyPair plot.
 
         :param row_decomp:
         :param decomp_plot_domain:
@@ -1812,13 +1763,12 @@ class FormulaAlloyPair(MSONable):
         e_hull_limit=0.1,
         hull_tuple="auto",
         shades=50,
-        rgb=[100, 100, 100],
+        rgb=None,
         reorder_traces=True,
         opacity_factor=0.2,
         opacity_exp=1 / 2,
     ):
-        """
-        Method to add a shaded halfspace hull window to FormulaAlloyPair plot
+        """Add a shaded halfspace hull window to FormulaAlloyPair plot.
 
         :param fig:
         :param hull_tuple:
@@ -1830,7 +1780,8 @@ class FormulaAlloyPair(MSONable):
         :param opacity_exp:
         :return: figure
         """
-
+        if rgb is None:
+            rgb = [100, 100, 100]
         if not fig:
             fig = go.Figure()
         if hull_tuple == "auto":
@@ -1851,9 +1802,9 @@ class FormulaAlloyPair(MSONable):
                     y=list(y_hull + e_hull_limit * (i - 1) / (shades - 1))
                     + list(y_hull + e_hull_limit * (i) / (shades - 1))[::-1],
                     fill="tonexty",
-                    fillcolor="rgba({}, {}, {}, {})".format((rgb[0]), (rgb[1]), (rgb[2]), (opac)),
+                    fillcolor=f"rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, {opac})",
                     line=dict(
-                        color="rgba({}, {}, {}, {})".format((rgb[0]), (rgb[1]), (rgb[2]), (opac)),
+                        color=f"rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, {opac})",
                         width=0,
                     ),
                     showlegend=False,
@@ -1872,12 +1823,11 @@ class FormulaAlloyPair(MSONable):
     # may not be necessary?
     @staticmethod
     def get_critical_points_data(fig):
-        """
-        Function to get the critical points of the halfspace hull for a FormulaAlloyPair figure
+        """Get the critical points of the halfspace hull for a FormulaAlloyPair figure.
+
         :param fig:
         :return:
         """
-
         for data in fig.data:
             data = data.to_plotly_json()
             if data["name"] == "hull":
@@ -1889,8 +1839,7 @@ class FormulaAlloyPair(MSONable):
 
 
 def _get_colormap_from_keys(color_keys, color_scale="greys", range_of_scale=(0.1, 0.9)):
-    """
-    A general function to write a plotly colormap from a set of keys
+    """Write a plotly colormap from a set of keys.
 
     :param color_keys:
     :param color_scale:

@@ -30,4 +30,4 @@ jobs:
         pip install -e .
     - name: pytest
       run: |
-        pytest --cov=pymatgen.analysis.diffusion --durations=30 pymatgen
+        pytest --cov=pymatgen.analysis.alloys --durations=30 pymatgen

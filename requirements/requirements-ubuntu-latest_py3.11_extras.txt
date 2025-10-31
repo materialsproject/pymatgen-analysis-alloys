@@ -10,6 +10,7 @@ babel==2.17.0
     # via sphinx
 bibtexparser==1.4.3
     # via pymatgen
+black==25.9.0
 certifi==2025.10.5
     # via requests
 cfgv==3.4.0

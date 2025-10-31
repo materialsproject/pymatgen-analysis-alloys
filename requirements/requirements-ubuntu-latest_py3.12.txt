@@ -6,8 +6,6 @@
 #
 bibtexparser==1.4.3
     # via pymatgen
-black==25.9.0
-pydocstyle==6.3.0
 certifi==2025.10.5
     # via requests
 charset-normalizer==3.4.4

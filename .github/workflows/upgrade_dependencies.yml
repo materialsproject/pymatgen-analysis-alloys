@@ -10,7 +10,7 @@ jobs:
     strategy:
       matrix:
         os: ['ubuntu-latest']
-        package: ["mp-api"]
+        package: ["pymatgen-analysis-alloys"]
         python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
@@ -23,9 +23,9 @@ jobs:
       - name: Upgrade Python dependencies
         shell: bash
         run: |
-          python -m pip install --upgrade pip pip-tools
-          python -m piptools compile -q --upgrade --resolver=backtracking -o requirements/requirements-${{ matrix.os }}_py${{ matrix.python-version }}.txt pyproject.toml
-          python -m piptools compile -q --upgrade --resolver=backtracking --all-extras -o requirements/requirements-${{ matrix.os }}_py${{ matrix.python-version }}_extras.txt pyproject.toml
+          python -m pip install --upgrade "pip<27.3" pip-tools
+          python -m piptools compile -q --upgrade -o requirements/requirements-${{ matrix.os }}_py${{ matrix.python-version }}.txt pyproject.toml
+          python -m piptools compile -q --upgrade --all-extras -o requirements/requirements-${{ matrix.os }}_py${{ matrix.python-version }}_extras.txt pyproject.toml
       - name: Detect changes
         id: changes
         shell: bash

@@ -1651,8 +1651,10 @@ class FormulaAlloyPair(MSONable):
         records = []
         decomp_records = []
 
+        ref_comps = [Composition(formulas[i]) for i in range(2)]
+        x: np.floating[Any] | float
         for x in np.arange(0, 1, step_size):
-            comp = (1 - float(x)) * Composition(formulas[0]) + float(x) * Composition(formulas[1])
+            comp = (1 - float(x)) * ref_comps[0] + float(x) * ref_comps[1]
             decomp = phase_diagram.get_decomposition(comp)
             all_decomp_products |= {p.composition.reduced_formula for p in decomp}
             records.append(decomp)
@@ -1667,10 +1669,10 @@ class FormulaAlloyPair(MSONable):
                     }
                 )
         # critical_x = []
-        for comp in phase_diagram.get_critical_compositions(Composition(formulas[0]), Composition(formulas[1])):
-            if comp == Composition(formulas[0]):
+        for comp in phase_diagram.get_critical_compositions(*ref_comps):
+            if comp == ref_comps[0]:
                 x = 0.0
-            elif comp == Composition(formulas[1]):
+            elif comp == ref_comps[1]:
                 x = 1.0
             else:
                 x = test_pair.get_x(comp)

@@ -11,17 +11,17 @@ jobs:
         python-version: ["3.11"]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements-ci.txt --quiet
+        pip install -r requirements/requirements-ubuntu-latest_py${{ matrix.python-version }}_extras.txt --quiet
         python -m pip install types-requests
     - name: mypy
       run: |

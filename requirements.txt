@@ -1,2 +1,0 @@
-pymatgen>=2023.7.17
-shapely>=2.0.0

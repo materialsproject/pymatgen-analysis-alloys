@@ -33,6 +33,7 @@ test = [
   "flake8",
   "black",
   "pycodestyle",
+  "pydocstyle",
   "mypy",
   "mypy-extensions",
   "typing-extensions",

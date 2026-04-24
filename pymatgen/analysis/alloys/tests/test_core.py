@@ -7,7 +7,6 @@ from pymatgen.core import Structure, Composition
 
 from pymatgen.analysis.alloys.core import AlloyPair
 
-
 mp_661: Structure = loadfn(Path(__file__).parent / "AlN_mp-661.json")
 mp_661_without_oxi_state = mp_661.copy()
 mp_661_without_oxi_state.remove_oxidation_states()
